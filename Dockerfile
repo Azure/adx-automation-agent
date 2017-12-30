@@ -7,5 +7,10 @@ RUN find /tmp/material/build -name '*.whl' | xargs pip install && \
     az
 
 RUN mkdir -p /app/static && \
-    python /tmp/material/scripts/collect_tests.py > /app/static/manifest.json
+    python /tmp/material/scripts/collect_tests.py > /app/static/manifest.json && \
+    cp /tmp/material/app/* /app/
+
+RUN rm -r /tmp/material && rm -r ~/.cache
+
+CMD python /app/job.py
 
