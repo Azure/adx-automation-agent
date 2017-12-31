@@ -10,8 +10,8 @@ if ! [ -d $A01DROID_BUILD_SOURCE ]; then
     exit 1
 fi
 
-mkdir -p material/build
-cp -R $A01DROID_BUILD_SOURCE/* material/build/
+mkdir -p build
+cp -R $A01DROID_BUILD_SOURCE/* ./build/
 
 version=`cat ./version`
 docker build -t a01droid:$version .
