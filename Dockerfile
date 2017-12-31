@@ -1,16 +1,11 @@
 FROM python:3.6.4-jessie
 
-COPY material /tmp/material 
+COPY build /tmp/build 
 
-RUN find /tmp/material/build -name '*.whl' | xargs pip install && \
-    find /tmp/material/build -name '*nspkg*.whl' | xargs pip install && \
-    az
+RUN find /tmp/build -name '*.whl' | xargs pip install && \
+    find /tmp/build -name '*nspkg*.whl' | xargs pip install && \
+    az --version && \
+    rm -rf /tmp/build
 
-RUN mkdir -p /app/static && \
-    python /tmp/material/scripts/collect_tests.py > /app/static/manifest.json && \
-    cp /tmp/material/app/* /app/
-
-RUN rm -r /tmp/material && rm -r ~/.cache
-
-CMD python /app/job.py
+COPY app /app
 
