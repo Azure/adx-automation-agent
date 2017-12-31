@@ -14,6 +14,9 @@ resp = requests.get('http://{}/run/{}/tasks'.format(store_host, run_id))
 resp.raise_for_status()
 
 for task in resp.json():
-    task['status'] = 'initialized'
-    requests.patch('http://{}/task/{}'.format(store_host, task['id']), json={'status': 'initialized'})\
-            .raise_for_status()
+    requests.patch('http://{}/task/{}'.format(store_host, task['id']),
+                   json={
+                       'status': 'initialized',
+                       'result': None,
+                       'result_details': None
+                   }).raise_for_status()
