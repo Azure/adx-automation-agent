@@ -14,5 +14,6 @@ mkdir -p build
 cp -R $A01DROID_BUILD_SOURCE/* ./build/
 
 version=`cat ./version`
-docker build -t a01droid:$version .
 
+docker build -t a01droid:$version-alpine-python3.6 -f dockerfiles/Dockerfile-alpine-python3.6 .
+docker build -t a01droid:$version-jessie-python3.6 -f dockerfiles/Dockerfile-jessie-python3.6 .
