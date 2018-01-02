@@ -61,6 +61,7 @@ while True:
     result_details['agent'] = '{}@{}'.format(
         os.environ.get('ENV_POD_NAME', 'N/A'),
         os.environ.get('ENV_NODE_NAME', 'N/A'))
+    result_details['live'] = run_live
     patch = {
         'result_details': result_details
     }
