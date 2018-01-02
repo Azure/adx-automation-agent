@@ -31,7 +31,9 @@ tenant = os.environ.get('A01_SP_TENANT', None)
 if run_live:
     if username and password and tenant:
         try:
-            o(check_output('az login --service-principal -u {} -p {} -t {}'.format(username, password, tenant).split()))
+            login = check_output(
+                'az login --service-principal -u {} -p {} -t {}'.format(username, password, tenant).split())
+            o(login.decode('utf-8'))
         except CalledProcessError as error:
             o('Failed to sign in with the service principal.')
             o(str(error))
