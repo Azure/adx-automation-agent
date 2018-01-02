@@ -40,7 +40,6 @@ if run_live:
         o('Missing service principal settings for live test')
         sys.exit(1)
 
-
 o('Store host: {}'.format(store_host))
 o('    Run ID: {}'.format(run_id))
 
@@ -68,7 +67,10 @@ while True:
     # run the task
     begin = datetime.now()
     try:
-        output = check_output(['python', '-m', 'unittest', task['settings']['path']], stderr=STDOUT)
+        output = check_output(
+            ['python', '-m', 'unittest', task['settings']['path']],
+            stderr=STDOUT,
+            env={'AZURE_TEST_RUN_LIVE': 'True'} if run_live else None)
         output = output.decode('utf-8')
         result = 'Passed'
     except CalledProcessError as error:
