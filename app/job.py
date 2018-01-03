@@ -145,4 +145,6 @@ class Droid(object):
 
 
 if __name__ == '__main__':
-    Droid().login_azure_cli()
+    d = Droid()
+    d.login_azure_cli()
+    d.start()
