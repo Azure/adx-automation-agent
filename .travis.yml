@@ -1,0 +1,29 @@
+sudo: required
+language: python
+python:
+- '3.6'
+services:
+- docker
+jobs:
+  include:
+  - stage: test
+    script:
+    - pip install -r requirements.txt
+    - pylint app
+  - stage: test
+    script:
+    - version=`cat ./version`
+    - image=azureclidev.azurecr.io/azurecli-a01-droid:python3.6-$version
+    - docker build -t $image -f dockerfiles/python3.6/Dockerfile .
+    - docker images
+  - stage: publish
+    if: "(tag IS present) AND (branch = master)"
+    script:
+    - version=`cat ./version`
+    - image=azureclidev.azurecr.io/azurecli-a01-droid:python3.6-$version
+    - docker login azureclidev.azurecr.io -u $AZURECLIDEV_ACR_SP_USERNAME -p $AZURECLIDEV_ACR_SP_PASSWORD
+    - docker push $image
+env:
+  global:
+  - secure: VT18NTDs+oMecOG6I/mk98JwcUhchAP+leVhtGgxz7ZKVVKDg9jZNF5HOM0SKQUGfIPBtVVrUYrM1r2ku9EGnG+3RxsKKHjrzKk0Fq8smnJLLkzv7ITOEp8uLQcSqSlLlHOtd2CFrWfcn6pWk8n0MyBFiEKVCFS4DC3yeLId4D18YgtQfmIuv76C+ISQvRFGWt0j9zBQcWM3YrgZ++j1Ynn2HAS2Xns80zx1FevFVKM5yHAxmcNO3xPtKdJ6ue57j09zdkLN89Yv73W80McHV92FAIWe/TiHHJwU4sKa2N0NAj5Pf7LL6L3P76SBCxn0UtDE39leo/ii2al4VSQlep7kBUA8zQ9Ev8PqluVG4l7O3cohBbvW6z0c6mniYzRsiCTLopQXDZxYb62U/HLxM0DSm3rcFFjexoH/4tplagONmPMhbmRrfyzNw7t2kQx9/+FxiGMoPZMUVNl+TKbARjg+9wyt67ztg3kYGMbKbvp7YQ7gol5HbFphOLonZACo2XSYqa4X/8g0CxAgv38VJQFFtjxgJY0GMDrJz8DqzM+PwRoJoUj/NjaxN5DXLfXDGN9b4iS5w1jX3LIilVsitiMTIX2bBxPlnFTQNcpwGD986kdvDvgukE6FatE9+8S6BXXIZgbf/5DzMFOUxY4ESX29vPCdvP+KrPcVkrj8TUA=
+  - secure: mZCob0lh0C2rNYCgm9Ikf9nknadYsYVpOUIgwVgjOWIsXrMnMlBDQCq8Sc6FaBRU9CYrqUPoXzX4o88c3r5EpczBeMFwjh/DvhXuVEQGtqqgLJjOM7ip0djqVisAyPFnvSzsaL/U1hPBpY8F3lIfxH3MoUVAONev/Q6t1Z5X7yeI7WSTW7XMfANV5mEStbfIMh0eCsqdhSp6/mDhWfyhZOw9bC0MCYQX3fegAGS0GlgmDWsBmxysiTHqPvzmLRn3ZdAaih9ofBjMIMH00DB2wc5tuXRytL6pMJlEcs5lZ3S2XM9NuMjF2TbFF58LN1I3CyTUvcudMHTdPSsKYHGFyD1XMRjH+woMqzJEdaB8c6laml3wmBmU3zlESevx4lAtwxfimlGQI9z6shbqHg9wCxdPm10utTJ8o1/FA+5mVMpozxr0/h27UIkXrJrHYTwNtwPVyGjNcLFw1picQVHaUUq7jL4n1tLL/76z7o7uPRf/fidmA1/UGDRnhsgkmfkyky/6LiEYXKBlGsv0lyEcN6PYKeSJiLBqDL+IkKCxLGwFxWVl8YU4bQYA17jhy1mDb0xR1tiyQRiWBskCKFS/Rm1cAO/7XTTpT3yH2/RUQFYB6IuF6DOrI6aoV+7EIrAKSJYBLE6SH5tdWmdQU6TBCEFJYSKr/pI1sCsxUKka3Qc=

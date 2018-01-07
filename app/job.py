@@ -95,8 +95,8 @@ class Droid(object):
             print(output, file=sys.stdout, flush=True)
         else:
             os.makedirs(os.path.join(storage_mount, self.run_id), exist_ok=True)
-            with open(os.path.join(storage_mount, self.run_id, f'task_{task_id}.log'), 'w') as fq:
-                fq.write(output)
+            with open(os.path.join(storage_mount, self.run_id, f'task_{task_id}.log'), 'w') as log_file_handle:
+                log_file_handle.write(output)
 
         result_details = task.get('result_detail', dict())
         result_details['duration'] = int(elapsed.total_seconds() * 1000)
@@ -144,7 +144,11 @@ class Droid(object):
             sys.exit(1)
 
 
+def main():
+    droid = Droid()
+    droid.login_azure_cli()
+    droid.start()
+
+
 if __name__ == '__main__':
-    d = Droid()
-    d.login_azure_cli()
-    d.start()
+    main()
