@@ -4,10 +4,11 @@ from unittest import TestLoader
 from importlib import import_module
 from json import dumps as json_dumps
 
-import azure.cli
-from azure.cli.testsdk import ScenarioTest, LiveScenarioTest
+import azure.cli  # pylint: disable=import-error
+from azure.cli.testsdk import ScenarioTest, LiveScenarioTest  # pylint: disable=import-error
 
-records = []
+RECORDS = []
+
 
 def get_test_type(test_case):
     if isinstance(test_case, ScenarioTest):
@@ -16,26 +17,28 @@ def get_test_type(test_case):
         return 'Live'
     return 'Unit'
 
+
 def search(path, prefix=''):
     loader = TestLoader()
-    for _, name, isPkg in iter_modules(path):
+    for _, name, is_pkg in iter_modules(path):
         full_name = '{}.{}'.format(prefix, name)
         module_path = os.path.join(path[0], name)
 
-        if isPkg:
+        if is_pkg:
             search([module_path], full_name)
 
-        if not isPkg and name.startswith('test'):
-            m = import_module(full_name)
-            for suite in loader.loadTestsFromModule(m):
-                for test in suite._tests:
-                    records.append({
+        if not is_pkg and name.startswith('test'):
+            test_module = import_module(full_name)
+            for suite in loader.loadTestsFromModule(test_module):
+                for test in suite._tests:  # pylint: disable=protected-access
+                    RECORDS.append({
                         'module': full_name,
                         'class': test.__class__.__name__,
-                        'method': test._testMethodName,
+                        'method': test._testMethodName,  # pylint: disable=protected-access
                         'type': get_test_type(test),
-                        'path': '{}.{}.{}'.format(full_name, test.__class__.__name__, test._testMethodName)})
+                        'path': '{}.{}.{}'.format(full_name, test.__class__.__name__, test._testMethodName)})  # pylint: disable=protected-access
+
 
 search(azure.cli.__path__, 'azure.cli')
 
-print(json_dumps(records, indent=2))
+print(json_dumps(RECORDS, indent=2))
