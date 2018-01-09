@@ -20,7 +20,7 @@ jobs:
     - pip install -r requirements.txt
     - pylint app
     - image=azurecli-a01-droid:python3.6-$TRAVIS_BUILD_NUMBER
-    - docker build -t $image -f dockerfiles/python3.6/Dockerfile .
+    - docker build --pull -t $image -f dockerfiles/python3.6/Dockerfile .
     - docker images
     - docker login azureclidev.azurecr.io -u $AZURECLIDEV_ACR_SP_USERNAME -p $AZURECLIDEV_ACR_SP_PASSWORD
     - docker tag azurecli-a01-droid:python3.6-$TRAVIS_BUILD_NUMBER azureclidev.azurecr.io/azurecli-a01-droid:python3.6-$TRAVIS_TAG
