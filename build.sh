@@ -6,4 +6,4 @@ set -e
 
 version=`date '+%H%M%S'`
 image=azurecli-a01-droid:local-$version
-docker build -t $image -f dockerfiles/python3.6/Dockerfile .
+docker build --pull -t $image -f dockerfiles/python3.6/Dockerfile .
