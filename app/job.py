@@ -3,8 +3,11 @@
 import os
 import sys
 import shlex
+import shutil
 from datetime import datetime
 from subprocess import check_output, CalledProcessError, STDOUT
+from typing import Optional
+from importlib import import_module
 
 import requests
 
@@ -29,7 +32,7 @@ class Droid(object):
         self.password = os.environ.get('A01_SP_PASSWORD', None)
         self.tenant = os.environ.get('A01_SP_TENANT', None)
 
-    def login_azure_cli(self):
+    def login_azure_cli(self) -> None:
         if not self.run_live:
             return
 
@@ -98,6 +101,12 @@ class Droid(object):
             with open(os.path.join(storage_mount, self.run_id, f'task_{task_id}.log'), 'w') as log_file_handle:
                 log_file_handle.write(output)
 
+            # find the recording file and save it
+            recording_file = self._find_recording_file(test_path)
+            if recording_file:
+                shutil.copyfile(recording_file,
+                                os.path.join(storage_mount, self.run_id, f'recording_{task_id}.yaml'))
+
         result_details = task.get('result_detail', dict())
         result_details['duration'] = int(elapsed.total_seconds() * 1000)
         patch = {
@@ -142,6 +151,14 @@ class Droid(object):
         except ValueError as error:
             print(f'Fail to parse the task as JSON. {error}')
             sys.exit(1)
+
+    @staticmethod
+    def _find_recording_file(test_path: str) -> Optional[str]:
+        module_path, _, test_method = test_path.rsplit('.', 2)
+        test_folder = os.path.dirname(import_module(module_path).__file__)
+        recording_file = os.path.join(test_folder, 'recordings', test_method+'.yaml')
+        return recording_file if os.path.exists(recording_file) else None
+
 
 
 def main():

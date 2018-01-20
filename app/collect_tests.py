@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 import os.path
 from pkgutil import iter_modules
 from unittest import TestLoader
