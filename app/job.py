@@ -12,13 +12,13 @@ from importlib import import_module
 import requests
 
 
-class InternalCommunicationAuth(requests.auth.AuthBase):
+class InternalCommunicationAuth(requests.auth.AuthBase):  # pylint: disable=too-few-public-methods
     def __call__(self, req):
         req.headers['Authorization'] = os.environ['A01_INTERNAL_COMKEY']
         return req
 
 
-session = requests.Session()
+session = requests.Session()  # pylint: disable=invalid-name
 session.auth = InternalCommunicationAuth()
 
 
