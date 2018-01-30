@@ -12,6 +12,16 @@ from importlib import import_module
 import requests
 
 
+class InternalCommunicationAuth(requests.auth.AuthBase):
+    def __call__(self, req):
+        req.headers['Authorization'] = os.environ['A01_INTERNAL_COMKEY']
+        return req
+
+
+session = requests.Session()
+session.auth = InternalCommunicationAuth()
+
+
 class Droid(object):
     def __init__(self):
         try:
@@ -118,7 +128,7 @@ class Droid(object):
 
     def request_task(self) -> dict:
         try:
-            resp = requests.post('http://{}/run/{}/checkout'.format(self.store_host, self.run_id))
+            resp = session.post('http://{}/run/{}/checkout'.format(self.store_host, self.run_id))
             resp.raise_for_status()
 
             if resp.status_code == 204:
@@ -135,14 +145,14 @@ class Droid(object):
 
     def update_task(self, task_id: str, patch: dict) -> None:
         try:
-            requests.patch('http://{}/task/{}'.format(self.store_host, task_id), json=patch).raise_for_status()
+            session.patch('http://{}/task/{}'.format(self.store_host, task_id), json=patch).raise_for_status()
         except requests.HTTPError as error:
             print(f'Fail to update the task\'s details. {error}')
             sys.exit(1)
 
     def retrieve_task(self, task_id: str) -> dict:
         try:
-            resp = requests.get('http://{}/task/{}'.format(self.store_host, task_id))
+            resp = session.get('http://{}/task/{}'.format(self.store_host, task_id))
             resp.raise_for_status()
             return resp.json()
         except requests.HTTPError as error:
@@ -156,9 +166,8 @@ class Droid(object):
     def _find_recording_file(test_path: str) -> Optional[str]:
         module_path, _, test_method = test_path.rsplit('.', 2)
         test_folder = os.path.dirname(import_module(module_path).__file__)
-        recording_file = os.path.join(test_folder, 'recordings', test_method+'.yaml')
+        recording_file = os.path.join(test_folder, 'recordings', test_method + '.yaml')
         return recording_file if os.path.exists(recording_file) else None
-
 
 
 def main():
