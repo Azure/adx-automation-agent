@@ -1,9 +1,9 @@
-#!/usr/bin/env bash
+#!/bin/bash
 
-# build a local image for quick testing
+root=$(cd `dirname $0`; pwd)
 
-set -e
-
-version=`date '+%H%M%S'`
-image=azurecli-a01-droid:local-$version
-docker build --pull -t $image -f dockerfiles/python3.6/Dockerfile .
+for os in linux darwin windows; do
+    export GOOS=$os
+    mkdir -p $root/bin/$os
+    go build -o $root/bin/$os/a01droid
+done
