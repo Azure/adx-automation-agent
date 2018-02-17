@@ -55,7 +55,7 @@ func ckEndpoint() {
 		log.Fatalf("Fail to get response from the endpoint %s. Error %s.\n", endpoint, err)
 	}
 
-	if resp.StatusCode != 200 {
+	if resp.StatusCode != http.StatusOK {
 		log.Fatalf("The endpoint is not healthy. Status code: %d.\n", resp.StatusCode)
 	}
 }
