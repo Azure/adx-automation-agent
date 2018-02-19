@@ -8,7 +8,7 @@ if [ -z $version ]; then
     exit 0
 fi
 
-for os in linux darwin windows; droid
+for os in linux darwin windows; do
     az storage blob upload -c droid -f ./bin/$os/a01droid -n $version/$os/a01droid --validate-content
     az storage blob upload -c droid -f ./bin/$os/a01droid -n latest/$os/a01droid --validate-content
 done
