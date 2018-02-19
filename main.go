@@ -86,21 +86,21 @@ func preparePod() {
 }
 
 func createNewRequest(method string, path string, jsonBody interface{}) (result *http.Request, err error) {
-	templateError := "failed to create request"
+	templateError := fmt.Sprintf("Fail to create request [%s %s].", method, path) + " Reason %s. Exception %s."
 	auth := os.Getenv(envKeyInternalCommunicationKey)
 
 	var body io.Reader
 	if jsonBody != nil {
 		content, err := json.Marshal(jsonBody)
 		if err != nil {
-			return result, fmt.Errorf("%s Failed to marshal JSON: %s", templateError, err)
+			return nil, fmt.Errorf(templateError, "unable to marshal body in JSON", err)
 		}
 		body = bytes.NewBuffer(content)
 	}
 
 	result, err = http.NewRequest(method, fmt.Sprintf("%s/%s", endpoint, path), body)
 	if err != nil {
-		return result, fmt.Errorf("%s. Error: %s", templateError, err)
+		return nil, fmt.Errorf(templateError, "unable to create requeset", err)
 	}
 	result.Header.Set("Authorization", auth)
 	if body != nil {
@@ -112,36 +112,42 @@ func createNewRequest(method string, path string, jsonBody interface{}) (result 
 
 // checkoutTask finds a new task to run and updates in which pod it will run (this pod!)
 func checkoutTask(runID string) (id int, err error) {
-	templateError := fmt.Sprintf("failed /ruin/%s/checkout", runID)
+	templateError := fmt.Sprintf("Fail to checkout task from run %s.", runID) + " Reason: %s. Exception: %s."
 	request, err := createNewRequest(http.MethodPost, fmt.Sprintf("run/%s/checkout", runID), nil)
 	if err != nil {
-		return id, fmt.Errorf("%s. %s", templateError, err)
+		return 0, fmt.Errorf(templateError, "unable to create new request", err)
 	}
 
 	resp, err := httpClient.Do(request)
 	if err != nil {
-		return id, fmt.Errorf("%s. Request failed with error: %s", templateError, err)
+		return 0, fmt.Errorf(templateError, "http request failed.", err)
 	}
 
-	if resp.StatusCode != http.StatusOK {
-		if resp.StatusCode == http.StatusNoContent {
-			log.Println("No more tasks. This droid's work is done.")
-			os.Exit(0)
-		} else {
-			return id, fmt.Errorf("%s. Status code: %d", templateError, resp.StatusCode)
+	if resp.StatusCode == http.StatusOK {
+		// continue
+	} else if resp.StatusCode == http.StatusNoContent {
+		log.Println("No more tasks. This droid's work is done.")
+		os.Exit(0)
+	} else {
+		reason := fmt.Sprintf("status code: %d.", resp.StatusCode) + " Body %s"
+		defer resp.Body.Close()
+		b, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			return 0, fmt.Errorf(templateError, fmt.Sprintf(reason, "fail to read."), err)
 		}
+		return 0, fmt.Errorf(templateError, fmt.Sprintf(reason, string(b)), "N/A")
 	}
 
 	defer resp.Body.Close()
 	b, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return id, fmt.Errorf("%s. Failed reading response body: %v", templateError, err)
+		return 0, fmt.Errorf(templateError, "unable to read response body", err)
 	}
 
 	var task a01Task
 	err = json.Unmarshal(b, &task)
 	if err != nil {
-		return id, fmt.Errorf("%s. JSON unmarshaling failed: %s", templateError, err)
+		return 0, fmt.Errorf(templateError, "unable to parse body in JSON", err)
 	}
 
 	// update task
@@ -152,7 +158,7 @@ func checkoutTask(runID string) (id int, err error) {
 
 	err = patchTask(task)
 	if err != nil {
-		return id, fmt.Errorf("%s. Failed updating task: %s", templateError, err)
+		return 0, fmt.Errorf(templateError, "unable to update the task", err)
 	}
 
 	log.Printf("Checked out task %d.\n", task.ID)
@@ -160,115 +166,117 @@ func checkoutTask(runID string) (id int, err error) {
 }
 
 func patchTask(task a01Task) error {
-	templateError := fmt.Sprintf("failed PATCH run '%s' on task '%d'", runID, task.ID)
+	templateError := fmt.Sprintf("Fail to path task %d.", task.ID) + " Reason: %s. Exception: %s."
 	path := fmt.Sprintf("task/%d", task.ID)
 
 	req, err := createNewRequest(http.MethodPatch, path, task)
 	if err != nil {
-		return fmt.Errorf("%s. %s", templateError, err)
+		return fmt.Errorf(templateError, "unable to create new request", err)
 	}
 
 	resp, err := httpClient.Do(req)
 	if err != nil {
-		return fmt.Errorf("%s. Error: %s", templateError, err)
+		return fmt.Errorf(templateError, "http request failed.", err)
 	}
 
 	if resp.StatusCode >= 300 {
+		reason := fmt.Sprintf("status code: %d.", resp.StatusCode) + " Body %s"
 		defer resp.Body.Close()
 		b, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
-			return fmt.Errorf("%s. Status code: %d. Failed reading response body: %s", templateError, resp.StatusCode, err)
+			return fmt.Errorf(templateError, fmt.Sprintf(reason, "fail to read."), err)
 		}
-		return fmt.Errorf("%s. Status code: %d. Response: %s", templateError, resp.StatusCode, b)
+		return fmt.Errorf(templateError, fmt.Sprintf(reason, string(b)), "N/A")
 	}
+
 	return nil
 }
 
 func getTask(taskID int) (task a01Task, err error) {
+	templateError := fmt.Sprintf("Fail to get task %d.", taskID) + " Reason: %s. Exception: %s."
 	path := fmt.Sprintf("task/%d", taskID)
-	templateError := fmt.Sprintf("failed GET %s", path)
 
 	request, err := createNewRequest(http.MethodGet, path, nil)
 	if err != nil {
-		return task, fmt.Errorf("%s. %s", templateError, err)
+		return task, fmt.Errorf(templateError, "unable to create new request", err)
 	}
 
 	resp, err := httpClient.Do(request)
 	if err != nil {
-		return task, fmt.Errorf("%s with error: %s", templateError, err)
+		return task, fmt.Errorf(templateError, "http request failed.", err)
 	}
 
 	defer resp.Body.Close()
 	b, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		err = fmt.Errorf("%s. Status code: %d. Failed reading response body: %s", templateError, resp.StatusCode, err)
+		return task, fmt.Errorf(templateError, "unable to read response body.", err)
 	}
 
 	if resp.StatusCode >= 300 {
-		if err != nil {
-			return
-		}
-		return task, fmt.Errorf("%s. Status code: %d. Response: %s", templateError, resp.StatusCode, b)
+		reason := fmt.Sprintf("status code: %d. Body %s", resp.StatusCode, string(b))
+		return task, fmt.Errorf(templateError, reason, "N/A")
 	}
 
 	err = json.Unmarshal(b, &task)
 	if err != nil {
-		return task, fmt.Errorf("%s. JSON decoding failed: %s", templateError, err)
+		return task, fmt.Errorf(templateError, "unable to parse body in JSON", err)
 	}
 
 	return
 }
 
-func saveTaskLog(runID string, taskID int, output []byte) {
+func saveTaskLog(runID string, taskID int, output []byte) error {
 	stat, err := os.Stat(pathMountStorage)
-
 	if err == nil && stat.IsDir() {
 		runLogFolder := path.Join(pathMountStorage, runID)
 		os.Mkdir(runLogFolder, os.ModeDir)
 
 		taskLogFile := path.Join(runLogFolder, fmt.Sprintf("task_%d.log", taskID))
 		err = ioutil.WriteFile(taskLogFile, output, 0644)
-		if err == nil {
-			return
+		if err != nil {
+			return fmt.Errorf("Fail to save task log. Reason: unable to write file. Exception: %s", err)
 		}
+		return nil
 	}
 
 	// the mount directory doesn't exist, output the log to stdout and let the pod logs handle it.
 	log.Println("Storage volume is not mount for logging. Print the task output to the stdout instead.")
 	log.Println("\n" + string(output))
+	return nil
 }
 
-func afterTask(taskID int) {
-	templateError := "after task error"
+func afterTask(taskID int) error {
+	templateError := "Fail to exectue after task action. Reason: %s. Exception: %s."
 	_, err := os.Stat(scriptAfterTest)
 	if err != nil && os.IsNotExist(err) {
-		log.Printf("%s. Executable %s doesn't exist. Skip after task action.\n", templateError, scriptAfterTest)
-		return
+		// Missing after task execuable is not considerred an error.
+		log.Printf("Skip the after task action because the executable %s doesn't exist.", scriptAfterTest)
+		return nil
 	}
 
 	task, err := getTask(taskID)
 	if err != nil {
-		log.Printf("%s. Failed to get task: %s\n", templateError, err)
-		return
+		return fmt.Errorf(templateError, "unable to get the task", err)
 	}
 	taskInBytes, err := json.Marshal(task)
 	if err != nil {
-		log.Printf("%s. Fail to encode task to JSON. Error: %s.\n", taskInBytes, err)
-		return
+		return fmt.Errorf(templateError, "unable to encode task to JSON", err)
 	}
 
 	output, err := exec.Command(scriptAfterTest, pathMountStorage, string(taskInBytes)).CombinedOutput()
 	if err != nil {
-		log.Printf("Fail to execute after task action. Error: %s.\n", err)
+		return fmt.Errorf(templateError, "task executable failure", err)
 	}
-	log.Println(string(output))
+
+	log.Printf("After task executed.\n%s\n", string(output))
+	return nil
 }
 
 func runTask(taskID int) error {
-	templateError := "failed to run task"
+	templateError := fmt.Sprintf("Fail to run task %d.", taskID) + " Reason: %s. Exception: %s."
 	task, err := getTask(taskID)
 	if err != nil {
-		return fmt.Errorf("%s. Failed to get task: %s", templateError, err)
+		return fmt.Errorf(templateError, "unable to get task", err)
 	}
 
 	execution := strings.Fields(task.Settings.Execution["command"])
@@ -295,12 +303,16 @@ func runTask(taskID int) error {
 		task.ResultDetails = make(map[string]interface{})
 	}
 	task.ResultDetails["duration"] = int(duration)
+
 	err = patchTask(task)
 	if err != nil {
-		return fmt.Errorf("%s. Failed to update task: %s", templateError, err)
+		return fmt.Errorf(templateError, "unable to update task", err)
 	}
 
-	saveTaskLog(runID, taskID, output)
+	err = saveTaskLog(runID, taskID, output)
+	if err != nil {
+		log.Println(err.Error())
+	}
 
 	log.Printf("[%s] Task %s", task.Result, task.Name)
 	return nil
@@ -322,6 +334,10 @@ func main() {
 			log.Fatalf(err.Error())
 		}
 
-		afterTask(taskID)
+		err = afterTask(taskID)
+		if err != nil {
+			// after task action's failure is not fatal.
+			log.Println(err.Error())
+		}
 	}
 }
