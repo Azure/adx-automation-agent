@@ -25,10 +25,11 @@ const (
 )
 
 var (
-	httpClient = &http.Client{CheckRedirect: nil}
-	runID      = os.Getenv(envKeyRunID)
-	endpoint   = "http://" + os.Getenv(envKeyStoreName)
-	version    = "Unknown"
+	httpClient   = &http.Client{CheckRedirect: nil}
+	runID        = os.Getenv(envKeyRunID)
+	endpoint     = "http://" + os.Getenv(envKeyStoreName)
+	version      = "Unknown"
+	sourceCommit = "Unknown"
 )
 
 type a01TaskSetting struct {
@@ -321,7 +322,7 @@ func runTask(taskID int) error {
 
 func main() {
 	if len(os.Args) > 1 && os.Args[1] == "--version" {
-		fmt.Printf("A01 Droid Engine. Ver: %s.\n", version)
+		fmt.Printf("A01 Droid Engine.\nVersion: %s.\nCommit: %s.\n", version, sourceCommit)
 		os.Exit(0)
 	}
 
