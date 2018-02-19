@@ -1,5 +1,15 @@
 language: go
+before_install:
+- echo "deb [arch=amd64] https://packages.microsoft.com/repos/azure-cli/ `lsb_release -cs` main" | sudo tee /etc/apt/sources.list.d/azure-cli.list
+- sudo apt-key adv --keyserver packages.microsoft.com --recv-keys 52E16F86FEE04B979B07E28DB02C46DF417A0893
+- sudo apt-get install -y apt-transport-https
+- sudo apt-get -qq update && sudo apt-get install -y azure-cli
 go:
 - '1.9'
-scripts:
-- go build goapp/a01droid.go
+env:
+  global:
+  - secure: mVnGllH5+bnpQLIzlzjdRGc1xS9PJBhpJLoCMv+jqFE9B765I2/ncC/j4IpJeAMYrGnUH+D6xiABu39+8SmH2dOmFXBoFbMyb2Qs92FsqRBfeLt7Pqjz+1ct2xoAGdv372zMKzKOlHoYRo0OFuJDs+QjwIddNT5gE1Dgg/dhQgH2HkmGyE85bBxI5Wip1Tbeqfx1teSulhJ4yrh0PuTRw+1CLnc0D7z/+RL/QxRq2Fu8Y1EqHu1A5lxMEBid2Id9j2MUZhmVw00h1P7Q2PPWTwm3sQZGN+GFzAXxJTs9Yq+B26eL9+RkaPlcHRLoLB7e6MPvcaHYH58mFVaf8gRbnD6Oc7px+3g6hw29nXoqH8bo0eU5qQq6qfT2A1KMwm5COUZmJcxHJETBgLMlArULuINbwqDhHQREqHyuY4H8rtn3/jNjHO+cuPmIABhBBmcfPPz/WycZgdXsRXoEFCo4gtstehOZNwjNsYXQhxFjcp56o31DgGOEVXvU4t0pK7Y1nAaHztR3NaYQQKewIXC1+1t8uvig8oRUxNJ7z5M52e9UzE/nmTUbrwsix9pWqtQoUYXZR3O1feL75nbkh7EXscz7yjmoBXLzN3WwPNvg1cPNqDF7ckwEqZ2zzsRLmJQJj9F+XKp2QdI/suYj+0GLQ/QFroBW9jV62LM/fZn66pk=
+  - secure: FVc9CqaTzbI3RFQ/23KJ+bfhUsmshmRecCCC5bKdmlNx33xKdNojrLZBKr4xgftUxg3Ptzdtil53Plc/xX2PDN6By6sxPFqjUrZNbOM1VnQXQXdgKmsMG1N4TEvB8Kc6AAQVNuB0EDgLcAZYJWd36Hrilyietq6OO4sGjLr6LQmtxDkHfvQ/pUniIax3o9XXgBpCvVMLqdLRouTTwS+tCnr1cq4B8V6A6xD2/N9xEWtWKCngfKQSYQRiFBOcxJ+oDZGTzPaZLjEpQW3AsQ6T1zgBFP3T58LdhB2b0hfihQHUD8Wc5JzUxNFjRXAdtOhMj08Rntc9t195cgRMkUucraWsfiK9uFlL1/z6+Yrn8UfYmx8ZwaVE6MwmmQtiC6/SYIk/zdJBUGNr+/mp+vz3/2Q1KsOmAdcns4SylLiLPCEIpAE/esXSCFoEHP0SSL343nlUs2lkr/dWK9GsxNP25nClvgBkDRNzMOspgSY6n+k5FTCW4QIm4/FPXy00e1F+WPG/+kJN9phY+iJ29YglxeOY3/iZbkdOQzuZ1CAsQMQmh/CVBic8MMJ9yKtd7BfWLLeKz84B4LxV3T2lA0aQ+qCdczus0mkiIH989Ti9O89RU8m6XJrFIvJuBK97RgbyON1BlNR5ce8/1A5yUvGRfjQWb0Odzhyn+RuPrckeuU8=
+script:
+- ./build.sh $TRAVIS_TAG
+- ./publish.sh $TRAVIS_TAG

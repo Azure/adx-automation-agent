@@ -28,6 +28,7 @@ var (
 	httpClient = &http.Client{CheckRedirect: nil}
 	runID      = os.Getenv(envKeyRunID)
 	endpoint   = "http://" + os.Getenv(envKeyStoreName)
+	version    = "Unknown"
 )
 
 type a01TaskSetting struct {
@@ -319,6 +320,11 @@ func runTask(taskID int) error {
 }
 
 func main() {
+	if len(os.Args) > 1 && os.Args[1] == "--version" {
+		fmt.Printf("A01 Droid Engine. Ver: %s.\n", version)
+		os.Exit(0)
+	}
+
 	ckEnvironment()
 	ckEndpoint()
 	preparePod()
