@@ -1,16 +1,11 @@
 language: go
 before_install:
-- echo "deb [arch=amd64] https://packages.microsoft.com/repos/azure-cli/ `lsb_release
-  -cs` main" | sudo tee /etc/apt/sources.list.d/azure-cli.list
+- echo "deb [arch=amd64] https://packages.microsoft.com/repos/azure-cli/ `lsb_release -cs` main" | sudo tee /etc/apt/sources.list.d/azure-cli.list
 - sudo apt-key adv --keyserver packages.microsoft.com --recv-keys 52E16F86FEE04B979B07E28DB02C46DF417A0893
 - sudo apt-get install -y apt-transport-https
 - sudo apt-get -qq update && sudo apt-get install -y azure-cli
 go:
 - '1.9'
-env:
-  global:
-  - secure: ljuUuTYCR69QmYatPpLPLCRGIojf9rye10Zh9oSsVdeY1Ur+RoNztkXg7Fe/F8IB0Hu2T91bF6T/WDn3OJ6Twg28gnWPXDTPk9vco66VHOMNpj0lY1D2QO54fn375BgzU7bR5krHHMwO4UYiPZDWR44rakPKhderXASVgPPov33kbaQvGDFbTJAnuKc65YrKFqCeaqYDt1RbgARm7+w79AwEjPABjB75969wEoqwYYwh9oLvyGCz9ZGWq8PDkM2ndZKYS8C8oYei0SO+e5E721nDuF9GRHqQZn2RsatNkYdkH0DkSostdR+67KI4TADz+RGeqfFZ6S2WS0hCI0jrvx5fM6yYSWPuBnhqlk2y8EXOPFKwYQPv/2ZPB6swmhPNiH7Q+a+Pe9kYCPJLka3cGA4z1fy3cWrtbeSdrCYjk9j/dD0pZcq9iV6Gg4kS7ebobchP/VF2Y40lF0+dhgCVeC0PZ26/EbNnQH2BhJGkzrizuv36TUNRxkRthZQpWuTb3I3FMD2C1qpUySjo5bzYqAhRnyRcUswZe38I0IllMgvVgC3b2OHraxiCRC5JuV8HyT6+QaKDIYh/AqPvN2n14aGUImaD5afbsz+E6RlkdKlFUSkMEwWOrD6cirRk7p2dpIH0VT79tQCEoaPnElgQhZOZ/O/Nt9eHmkQR3OHrcYM=
-  - secure: VybPIAh+a00ne1BqEMYZc8Hdr73DgEtQ2UgqihokUC1bVpdPP/NchpLtjhQBZwjdXs9sPksOSETqIu5+fMOQH3/orVzveK4NGBzrwdPUOWRHN9abV4LoYaeAJ0l6Yi/ez6L1vD0tr3tEq+nYEQREQE2d6DmxuVPYeMpBXM4O4VE40xtiZ/VXUsopSo9JbPHKgjOsxz7ch+UAkgJtGHQ4K8sQ4BMubt2dsxOX1cDHpRDxtCNd3aN9sPBC1xUWWRA+TMq9iCb0Z8I2UC1PPVYqtYQhZPrXJgikanp1UahOxERPfag52JYPexa9PzJnujXd1zaCPBWZlXzBRvYSwKd1fjRnOLjc+DGhx1DE4R+kMBFbJOFz0c+9UoAp4AYsrKDtfB1WjGfuzNMjA8t4SClyF2wn2ZxdNER9RsJVre7DRCcPjsFWNRG9bX8xyA772fq8B/xHXY31pz2/kOMSXwqDiLXKxKAOBY/lCLmtV95kr6hCg+iE6vGmLeexnj4lKGaWCw6FVie0hzp5BNcBwSb+sTyZXB3QIKwbZm/RaKmtDFe9ulgtTQ1K8KiGZAlBGwNF4b0bCEyer149GPfN5re/dUsIH6btsIbrbW6x3yqhx2hklri9/FA1XrQ4P1dZaJamj2ea6Jq9ZOT6yDgsTTCq736t1z/1pr4W4q3L6gLl13U=
 script:
 - "./build.sh $TRAVIS_TAG"
 - "./publish.sh $TRAVIS_TAG"
