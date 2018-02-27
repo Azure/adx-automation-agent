@@ -10,5 +10,6 @@ for os in linux darwin windows; do
     mkdir -p $root/bin/$os
     echo -n "Building droid for $os ..."
     go build -o $root/bin/$os/a01droid -ldflags "-X main.version=$version -X main.sourceCommit=$commit"
+    chmod +x $root/bin/$os/a01droid
     echo "Done."
 done
