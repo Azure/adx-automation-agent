@@ -1,10 +1,8 @@
 package main
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -13,43 +11,19 @@ import (
 	"path"
 	"strings"
 	"time"
-)
 
-const (
-	envKeyStoreName                = "A01_STORE_NAME"
-	envKeyInternalCommunicationKey = "A01_INTERNAL_COMKEY"
-	envKeyRunID                    = "A01_DROID_RUN_ID"
-	pathMountStorage               = "/mnt/storage"
-	scriptPreparePod               = "/app/prepare_pod"
-	scriptAfterTest                = "/app/after_test"
+	"github.com/Azure/adx-automation-agent/common"
+	"github.com/Azure/adx-automation-agent/httputils"
+	"github.com/Azure/adx-automation-agent/models"
 )
 
 var (
 	httpClient   = &http.Client{CheckRedirect: nil}
-	runID        = os.Getenv(envKeyRunID)
-	endpoint     = "http://" + os.Getenv(envKeyStoreName)
+	runID        = os.Getenv(common.EnvKeyRunID)
+	endpoint     = "http://" + os.Getenv(common.EnvKeyStoreName)
 	version      = "Unknown"
 	sourceCommit = "Unknown"
 )
-
-type a01TaskSetting struct {
-	Version     string            `json:"ver,omitempty"`
-	Execution   map[string]string `json:"execution,omitempty"`
-	Classifier  map[string]string `json:"classifier,omitempty"`
-	Miscellanea map[string]string `json:"msic,omitempty"`
-}
-
-type a01Task struct {
-	Annotation    string                 `json:"annotation,omitempty"`
-	Duration      int                    `json:"duration,omitempty"`
-	ID            int                    `json:"id,omitempty"`
-	Name          string                 `json:"name,omitempty"`
-	Result        string                 `json:"result,omitempty"`
-	ResultDetails map[string]interface{} `json:"result_details,omitempty"`
-	RunID         int                    `json:"run_id,omitempty"`
-	Settings      a01TaskSetting         `json:"settings,omitempty"`
-	Status        string                 `json:"status,omitempty"`
-}
 
 func ckEndpoint() {
 	resp, err := http.Get(endpoint + "/healthy")
@@ -63,7 +37,10 @@ func ckEndpoint() {
 }
 
 func ckEnvironment() {
-	required := []string{envKeyInternalCommunicationKey, envKeyRunID, envKeyStoreName}
+	required := []string{
+		common.EnvKeyInternalCommunicationKey,
+		common.EnvKeyRunID,
+		common.EnvKeyStoreName}
 
 	for _, r := range required {
 		_, exists := os.LookupEnv(r)
@@ -74,48 +51,23 @@ func ckEnvironment() {
 }
 
 func preparePod() {
-	_, statErr := os.Stat(scriptPreparePod)
+	_, statErr := os.Stat(common.PathScriptPreparePod)
 	if statErr != nil && os.IsNotExist(statErr) {
-		log.Printf("Executable %s doesn't exist. Skip preparing the pod.\n", scriptPreparePod)
+		log.Printf("Executable %s doesn't exist. Skip preparing the pod.\n", common.PathScriptPreparePod)
 		return
 	}
 
-	output, err := exec.Command(scriptPreparePod).CombinedOutput()
+	output, err := exec.Command(common.PathScriptPreparePod).CombinedOutput()
 	if err != nil {
 		log.Fatalf("Fail to prepare the pod: %s.\n%s\n", err, string(output))
 	}
 	log.Printf("Preparing Pod: \n%s\n", string(output))
 }
 
-func createNewRequest(method string, path string, jsonBody interface{}) (result *http.Request, err error) {
-	templateError := fmt.Sprintf("Fail to create request [%s %s].", method, path) + " Reason %s. Exception %s."
-	auth := os.Getenv(envKeyInternalCommunicationKey)
-
-	var body io.Reader
-	if jsonBody != nil {
-		content, err := json.Marshal(jsonBody)
-		if err != nil {
-			return nil, fmt.Errorf(templateError, "unable to marshal body in JSON", err)
-		}
-		body = bytes.NewBuffer(content)
-	}
-
-	result, err = http.NewRequest(method, fmt.Sprintf("%s/%s", endpoint, path), body)
-	if err != nil {
-		return nil, fmt.Errorf(templateError, "unable to create requeset", err)
-	}
-	result.Header.Set("Authorization", auth)
-	if body != nil {
-		result.Header.Set("Content-Type", "application/json")
-	}
-
-	return result, nil
-}
-
 // checkoutTask finds a new task to run and updates in which pod it will run (this pod!)
 func checkoutTask(runID string) (id int, err error) {
 	templateError := fmt.Sprintf("Fail to checkout task from run %s.", runID) + " Reason: %s. Exception: %s."
-	request, err := createNewRequest(http.MethodPost, fmt.Sprintf("run/%s/checkout", runID), nil)
+	request, err := httputils.CreateRequest(http.MethodPost, fmt.Sprintf("run/%s/checkout", runID), nil)
 	if err != nil {
 		return 0, fmt.Errorf(templateError, "unable to create new request", err)
 	}
@@ -146,7 +98,7 @@ func checkoutTask(runID string) (id int, err error) {
 		return 0, fmt.Errorf(templateError, "unable to read response body", err)
 	}
 
-	var task a01Task
+	var task models.Task
 	err = json.Unmarshal(b, &task)
 	if err != nil {
 		return 0, fmt.Errorf(templateError, "unable to parse body in JSON", err)
@@ -167,11 +119,17 @@ func checkoutTask(runID string) (id int, err error) {
 	return task.ID, nil
 }
 
-func patchTask(task a01Task) error {
+func patchTask(task models.Task) error {
 	templateError := fmt.Sprintf("Fail to path task %d.", task.ID) + " Reason: %s. Exception: %s."
 	path := fmt.Sprintf("task/%d", task.ID)
 
-	req, err := createNewRequest(http.MethodPatch, path, task)
+	// Marshal the task
+	content, err := json.Marshal(task)
+	if err != nil {
+		return fmt.Errorf(templateError, "unable to marshal body in JSON", err)
+	}
+
+	req, err := httputils.CreateRequest(http.MethodPatch, path, content)
 	if err != nil {
 		return fmt.Errorf(templateError, "unable to create new request", err)
 	}
@@ -194,11 +152,11 @@ func patchTask(task a01Task) error {
 	return nil
 }
 
-func getTask(taskID int) (task a01Task, err error) {
+func getTask(taskID int) (task models.Task, err error) {
 	templateError := fmt.Sprintf("Fail to get task %d.", taskID) + " Reason: %s. Exception: %s."
 	path := fmt.Sprintf("task/%d", taskID)
 
-	request, err := createNewRequest(http.MethodGet, path, nil)
+	request, err := httputils.CreateRequest(http.MethodGet, path, nil)
 	if err != nil {
 		return task, fmt.Errorf(templateError, "unable to create new request", err)
 	}
@@ -228,9 +186,9 @@ func getTask(taskID int) (task a01Task, err error) {
 }
 
 func saveTaskLog(runID string, taskID int, output []byte) error {
-	stat, err := os.Stat(pathMountStorage)
+	stat, err := os.Stat(common.PathMountStorage)
 	if err == nil && stat.IsDir() {
-		runLogFolder := path.Join(pathMountStorage, runID)
+		runLogFolder := path.Join(common.PathMountStorage, runID)
 		os.Mkdir(runLogFolder, os.ModeDir)
 
 		taskLogFile := path.Join(runLogFolder, fmt.Sprintf("task_%d.log", taskID))
@@ -249,10 +207,10 @@ func saveTaskLog(runID string, taskID int, output []byte) error {
 
 func afterTask(taskID int) error {
 	templateError := "Fail to exectue after task action. Reason: %s. Exception: %s."
-	_, err := os.Stat(scriptAfterTest)
+	_, err := os.Stat(common.PathScriptAfterTest)
 	if err != nil && os.IsNotExist(err) {
 		// Missing after task execuable is not considerred an error.
-		log.Printf("Skip the after task action because the executable %s doesn't exist.", scriptAfterTest)
+		log.Printf("Skip the after task action because the executable %s doesn't exist.", common.PathScriptAfterTest)
 		return nil
 	}
 
@@ -265,7 +223,7 @@ func afterTask(taskID int) error {
 		return fmt.Errorf(templateError, "unable to encode task to JSON", err)
 	}
 
-	output, err := exec.Command(scriptAfterTest, pathMountStorage, string(taskInBytes)).CombinedOutput()
+	output, err := exec.Command(common.PathScriptAfterTest, common.PathMountStorage, string(taskInBytes)).CombinedOutput()
 	if err != nil {
 		return fmt.Errorf(templateError, "task executable failure", err)
 	}
