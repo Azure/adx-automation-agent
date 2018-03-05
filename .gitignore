@@ -16,3 +16,5 @@
 # Project specific
 bin/
 .idea/
+
+vendor/
