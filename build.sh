@@ -5,6 +5,7 @@ version=$1
 commit=${TRAVIS_COMMIT:-`git rev-parse --verify HEAD`}
 echo "Version: ${version:=`date -u +local-%Y%m%d-%H%M%S`}"
 
+export CGO_ENABLED=0
 
 for os in linux; do  # add darwin and windows in the future
     export GOOS=$os
