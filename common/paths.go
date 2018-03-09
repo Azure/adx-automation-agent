@@ -2,9 +2,12 @@ package common
 
 // Defines the well know paths on the image
 const (
-	PathMountStorage     = "/mnt/storage"
+	PathMountArtifacts   = "/mnt/storage"
+	PathMountTools       = "/mnt/tools"
 	PathScriptPreparePod = "/app/prepare_pod"
 	PathScriptAfterTest  = "/app/after_test"
+	PathScriptGetIndex   = "/app/get_index"
+	PathMetadataYml      = "/app/metadata.yml"
 )
 
 // Defines the Kubernetes specifci paths

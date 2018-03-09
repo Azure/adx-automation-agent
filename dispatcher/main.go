@@ -12,7 +12,6 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -22,8 +21,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	yaml "gopkg.in/yaml.v2"
-
 	"github.com/Azure/adx-automation-agent/common"
 	"github.com/Azure/adx-automation-agent/httputils"
 	"github.com/Azure/adx-automation-agent/kubeutils"
@@ -31,16 +28,16 @@ import (
 )
 
 var (
-	indexScript   = getFilepath("get_index")
-	metadataYml   = getFilepath("metadata.yml")
 	httpClient    = &http.Client{CheckRedirect: nil}
-	namespace     = getNamespace()
-	droidMetadata = getDroidMetadata()
+	namespace     = common.GetCurrentNamespace("a01-prod")
+	droidMetadata = models.ReadDroidMetadata(common.PathMetadataYml)
 	clientset     = kubeutils.TryCreateKubeClientset()
+	version       = "Unknown"
+	sourceCommit  = "Unknown"
 )
 
 func main() {
-	info("A01 Dispatcher start running ...")
+	info(fmt.Sprintf("A01 Droid Dispatcher.\nVersion: %s.\nCommit: %s.\n", version, sourceCommit))
 	info(fmt.Sprintf("Pod name: %s", os.Getenv(common.EnvPodName)))
 
 	var pRunID *int
@@ -161,7 +158,10 @@ func report(run *models.Run) {
 		}
 
 		info(string(body))
-		req, err := http.NewRequest(http.MethodPost, "http://a01-svc-email-service/report", bytes.NewBuffer(body))
+		req, err := http.NewRequest(
+			http.MethodPost,
+			fmt.Sprintf("http://%s/report", common.DNSNameEmailService),
+			bytes.NewBuffer(body))
 		if err != nil {
 			info("Fail to create request to requesting email.")
 			return
@@ -183,8 +183,8 @@ func report(run *models.Run) {
 }
 
 func queryTests(run *models.Run) []models.TaskSetting {
-	info(fmt.Sprintf("Expecting script %s.", indexScript))
-	content, err := exec.Command(indexScript).Output()
+	info(fmt.Sprintf("Expecting script %s.", common.PathScriptGetIndex))
+	content, err := exec.Command(common.PathScriptGetIndex).Output()
 	if err != nil {
 		panic(err.Error())
 	}
@@ -347,36 +347,61 @@ func getLabels(run *models.Run) map[string]string {
 	return labels
 }
 
-func getVolumes(run *models.Run) []corev1.Volume {
-	if droidMetadata.Storage {
-		azureSource := corev1.AzureFileVolumeSource{
-			SecretName: getSecretName(run),
-			ShareName:  run.Settings[common.KeyStorageShare].(string),
-		}
-		return []corev1.Volume{
-			corev1.Volume{
-				Name:         common.NameStorageVolume,
-				VolumeSource: corev1.VolumeSource{AzureFile: &azureSource}}}
+func getVolumes(run *models.Run) (volumes []corev1.Volume) {
+	volumes = []corev1.Volume{
+		corev1.Volume{
+			Name: common.StorageVolumeNameTools,
+			VolumeSource: corev1.VolumeSource{
+				AzureFile: &corev1.AzureFileVolumeSource{
+					SecretName: common.SecretNameAgents,
+					ShareName:  "latest",
+				},
+			},
+		},
 	}
 
-	return []corev1.Volume{}
+	if !droidMetadata.Storage {
+		return
+	}
+
+	volumes = append(volumes,
+		corev1.Volume{
+			Name: common.StorageVolumeNameArtifacts,
+			VolumeSource: corev1.VolumeSource{
+				AzureFile: &corev1.AzureFileVolumeSource{
+					SecretName: run.GetSecretName(droidMetadata),
+					ShareName:  run.Settings[common.KeyStorageShare].(string),
+				},
+			},
+		})
+
+	return
 }
 
 func getImagePullSource(run *models.Run) []corev1.LocalObjectReference {
 	return []corev1.LocalObjectReference{corev1.LocalObjectReference{Name: run.Settings[common.KeyImagePullSecret].(string)}}
 }
 
-func getContainerSpecs(run *models.Run) []corev1.Container {
+func getContainerSpecs(run *models.Run) (containers []corev1.Container) {
 	c := corev1.Container{
-		Name:  "main",
-		Image: run.Settings[common.KeyImageName].(string),
-		Env:   getEnvironmentVariableDef(run)}
+		Name:    "main",
+		Image:   run.Settings[common.KeyImageName].(string),
+		Env:     getEnvironmentVariableDef(run),
+		Command: []string{common.PathMountTools + "/a01droid", "-run", strconv.Itoa(run.ID)},
+	}
+
+	volumeMounts := []corev1.VolumeMount{
+		corev1.VolumeMount{
+			MountPath: common.PathMountTools,
+			Name:      common.StorageVolumeNameTools}}
 
 	if droidMetadata.Storage {
-		c.VolumeMounts = []corev1.VolumeMount{corev1.VolumeMount{
-			MountPath: common.PathMountStorage,
-			Name:      common.NameStorageVolume}}
+		volumeMounts = append(volumeMounts, corev1.VolumeMount{
+			MountPath: common.PathMountArtifacts,
+			Name:      common.StorageVolumeNameArtifacts})
 	}
+
+	c.VolumeMounts = volumeMounts
 
 	return []corev1.Container{c}
 }
@@ -389,14 +414,12 @@ func getEnvironmentVariableDef(run *models.Run) []corev1.EnvVar {
 		corev1.EnvVar{
 			Name:      common.EnvNodeName,
 			ValueFrom: &corev1.EnvVarSource{FieldRef: &corev1.ObjectFieldSelector{FieldPath: "spec.nodeName"}}},
-		corev1.EnvVar{Name: common.EnvKeyRunID, Value: strconv.Itoa(run.ID)},
-		corev1.EnvVar{Name: common.EnvKeyStoreName, Value: "task-store-web-service-internal/api"},
 		corev1.EnvVar{
 			Name: common.EnvKeyInternalCommunicationKey,
 			ValueFrom: &corev1.EnvVarSource{
 				SecretKeyRef: &corev1.SecretKeySelector{
-					LocalObjectReference: corev1.LocalObjectReference{Name: "a01store"},
-					Key:                  "internal.key"}}},
+					LocalObjectReference: corev1.LocalObjectReference{Name: "store-secrets"},
+					Key:                  "comkey"}}},
 	}
 
 	for _, def := range droidMetadata.Environments {
@@ -406,7 +429,7 @@ func getEnvironmentVariableDef(run *models.Run) []corev1.EnvVar {
 				Name: def.Name,
 				ValueFrom: &corev1.EnvVarSource{
 					SecretKeyRef: &corev1.SecretKeySelector{
-						LocalObjectReference: corev1.LocalObjectReference{Name: getSecretName(run)},
+						LocalObjectReference: corev1.LocalObjectReference{Name: run.GetSecretName(droidMetadata)},
 						Key:                  def.Value,
 					},
 				},
@@ -427,49 +450,6 @@ func getEnvironmentVariableDef(run *models.Run) []corev1.EnvVar {
 	}
 
 	return result
-}
-
-func getNamespace() string {
-	if content, err := ioutil.ReadFile(common.PathKubeNamespace); err == nil {
-		return string(content)
-	}
-
-	return "az"
-}
-
-func getSecretName(run *models.Run) string {
-	if v, ok := run.Settings[common.KeySecrectName]; ok && len(v.(string)) >= 0 {
-		return v.(string)
-	}
-	return droidMetadata.Product
-}
-
-func getDroidMetadata() *models.DroidMetadata {
-	content, err := ioutil.ReadFile(metadataYml)
-	if err != nil {
-		panic(err)
-	}
-
-	var metadata models.DroidMetadata
-	err = yaml.Unmarshal(content, &metadata)
-	if err != nil {
-		panic(err)
-	}
-
-	return &metadata
-}
-
-func getFilepath(filename string) (path string) {
-	path = filepath.Join("/app", filename)
-	if _, err := os.Stat(path); os.IsExist(err) {
-		return
-	}
-
-	if cwd, err := os.Getwd(); err == nil {
-		path = filepath.Join(cwd, path)
-	}
-
-	return
 }
 
 func getRandomString() string {

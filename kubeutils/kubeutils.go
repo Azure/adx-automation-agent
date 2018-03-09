@@ -2,32 +2,21 @@ package kubeutils
 
 import (
 	"fmt"
-	"os"
 	"os/user"
 	"path/filepath"
 
-	"github.com/Azure/adx-automation-agent/common"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 )
 
-// IsInCluster returns True if the current environment is in a Kubernetes cluster
-func IsInCluster() bool {
-	_, exists := os.LookupEnv(common.EnvKeyStoreName)
-	return exists
-}
-
 // CreateKubeClientset creates a new kubernetes clientset
 func CreateKubeClientset() (clientset *kubernetes.Clientset, err error) {
 	var config *rest.Config
 
-	if IsInCluster() {
-		config, err = rest.InClusterConfig()
-		if err != nil {
-			return nil, fmt.Errorf("Fail to create in cluster kubernetes config | Error %s", err)
-		}
-	} else {
+	// Always try to get in-cluster config first
+	config, err = rest.InClusterConfig()
+	if err != nil {
 		currentUser, err := user.Current()
 		if err != nil {
 			return nil, fmt.Errorf("Fail to get the current user")

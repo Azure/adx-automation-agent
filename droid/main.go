@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -19,16 +20,15 @@ import (
 
 var (
 	httpClient   = &http.Client{CheckRedirect: nil}
-	runID        = os.Getenv(common.EnvKeyRunID)
-	endpoint     = "http://" + os.Getenv(common.EnvKeyStoreName)
 	version      = "Unknown"
 	sourceCommit = "Unknown"
 )
 
 func ckEndpoint() {
-	resp, err := http.Get(endpoint + "/healthy")
+	url := fmt.Sprintf("http://%s/api/healthy", common.DNSNameTaskStore)
+	resp, err := http.Get(url)
 	if err != nil {
-		log.Fatalf("Fail to get response from the endpoint %s. Error %s.\n", endpoint, err)
+		log.Fatalf("Fail to get response from %s. Error %s.\n", url, err)
 	}
 
 	if resp.StatusCode != http.StatusOK {
@@ -37,10 +37,7 @@ func ckEndpoint() {
 }
 
 func ckEnvironment() {
-	required := []string{
-		common.EnvKeyInternalCommunicationKey,
-		common.EnvKeyRunID,
-		common.EnvKeyStoreName}
+	required := []string{common.EnvKeyInternalCommunicationKey}
 
 	for _, r := range required {
 		_, exists := os.LookupEnv(r)
@@ -186,9 +183,9 @@ func getTask(taskID int) (task models.Task, err error) {
 }
 
 func saveTaskLog(runID string, taskID int, output []byte) error {
-	stat, err := os.Stat(common.PathMountStorage)
+	stat, err := os.Stat(common.PathMountArtifacts)
 	if err == nil && stat.IsDir() {
-		runLogFolder := path.Join(common.PathMountStorage, runID)
+		runLogFolder := path.Join(common.PathMountArtifacts, runID)
 		os.Mkdir(runLogFolder, os.ModeDir)
 
 		taskLogFile := path.Join(runLogFolder, fmt.Sprintf("task_%d.log", taskID))
@@ -223,7 +220,7 @@ func afterTask(taskID int) error {
 		return fmt.Errorf(templateError, "unable to encode task to JSON", err)
 	}
 
-	output, err := exec.Command(common.PathScriptAfterTest, common.PathMountStorage, string(taskInBytes)).CombinedOutput()
+	output, err := exec.Command(common.PathScriptAfterTest, common.PathMountArtifacts, string(taskInBytes)).CombinedOutput()
 	if err != nil {
 		return fmt.Errorf(templateError, "task executable failure", err)
 	}
@@ -232,7 +229,7 @@ func afterTask(taskID int) error {
 	return nil
 }
 
-func runTask(taskID int) error {
+func runTask(taskID int, runID string) error {
 	templateError := fmt.Sprintf("Fail to run task %d.", taskID) + " Reason: %s. Exception: %s."
 	task, err := getTask(taskID)
 	if err != nil {
@@ -279,22 +276,26 @@ func runTask(taskID int) error {
 }
 
 func main() {
-	if len(os.Args) > 1 && os.Args[1] == "--version" {
-		fmt.Printf("A01 Droid Engine.\nVersion: %s.\nCommit: %s.\n", version, sourceCommit)
-		os.Exit(0)
+	pRunID := flag.String("run", "", "The run ID")
+	flag.Parse()
+
+	if pRunID == nil || len(*pRunID) == 0 {
+		log.Fatal("Missing runID")
 	}
+
+	log.Printf("A01 Droid Engine.\nVersion: %s.\nCommit: %s.\n", version, sourceCommit)
 
 	ckEnvironment()
 	ckEndpoint()
 	preparePod()
 
 	for {
-		taskID, err := checkoutTask(runID)
+		taskID, err := checkoutTask(*pRunID)
 		if err != nil {
 			log.Fatalf(err.Error())
 		}
 
-		err = runTask(taskID)
+		err = runTask(taskID, *pRunID)
 		if err != nil {
 			log.Fatalf(err.Error())
 		}
