@@ -83,12 +83,14 @@ func monitor(run *models.Run, job *batchv1.Job) {
 	for {
 		content, err := sendRequest(http.MethodGet, fmt.Sprintf("run/%d/tasks", run.ID), nil, "Fail to query tests. Reason %s. Exception %s.")
 		if err != nil {
-			log.Fatal(err.Error())
+			log.Println(err.Error())
+			continue
 		}
 
 		var tasks []models.Task
 		if err := json.Unmarshal(content, &tasks); err != nil {
-			log.Fatal(err.Error())
+			log.Println(err.Error())
+			continue
 		}
 
 		statuses := make(map[string]int)
@@ -106,7 +108,8 @@ func monitor(run *models.Run, job *batchv1.Job) {
 		lostTask := make([]int, 0, 10) // those tests where pod crashes during execution therfore entering limbo
 		podList, err := clientset.CoreV1().Pods(namespace).List(metav1.ListOptions{LabelSelector: "job-name = " + job.Name})
 		if err != nil {
-			log.Fatal(err.Error())
+			log.Println(err.Error())
+			continue
 		}
 
 		for _, task := range tasks {
