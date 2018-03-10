@@ -14,4 +14,5 @@ const (
 	KeyTestModel       = "a01.reserved.testmode"
 	KeyFromFailure     = "a01.reserved.fromrunfailure"
 	KeyProduct         = "a01.reserved.product"
+	KeyAgentVersion    = "a01.reserved.agentver"
 )

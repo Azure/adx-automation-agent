@@ -12,7 +12,8 @@ script:
 - dep ensure
 - ./build.sh
 deploy:
-- provider: scripts
+  provider: script
   script: ./publish.sh
   on:
     tags: true
+    branch: master

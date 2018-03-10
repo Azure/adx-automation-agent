@@ -354,7 +354,7 @@ func getVolumes(run *models.Run) (volumes []corev1.Volume) {
 			VolumeSource: corev1.VolumeSource{
 				AzureFile: &corev1.AzureFileVolumeSource{
 					SecretName: common.SecretNameAgents,
-					ShareName:  "latest",
+					ShareName:  fmt.Sprintf("linux-%s", run.Settings[common.KeyAgentVersion]),
 				},
 			},
 		},
