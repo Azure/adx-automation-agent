@@ -3,13 +3,13 @@
 To make a test image compatible to A01 live automation system, besides install executable test and product code, it should have following files and executables under the `/app` directory.
 
 ``` TEXT
--rwxr-xr-x 1 root root 31372182 Mar  2 21:33 a01dispatcher
--rwxr-xr-x 1 root root 28871433 Mar  2 21:32 a01droid
 -rwxr-xr-x 1 root root      147 Mar  2 21:32 get_index
 -rw-r--r-- 1 root root      350 Mar  2 21:32 metadata.yml
 -rwxr-xr-x 1 root root      618 Mar  2 21:32 prepare_pod
 -rwxr-xr-x 1 root root      474 Mar  2 21:32 after_test
 ```
+
+_The a01droid and a01dispatcher executables are no longer needed_
 
 ## Manifest /app/metadata.yml
 
@@ -94,20 +94,6 @@ It MUST print a JSON array in following format to the `stderr`
   - It MUST contains a `identifier` property.
   - The value of the `identifier` property is a string used to identify a test. The test query is tested against it.
   - The `classifier` can contains other properties.
-
-## Executable /app/a01droid and /app/a01dispatcher
-
-Both executable can be downloaded using following snippet.
-
-``` BASH
-curl -L https://a01tools.blob.core.windows.net/droid/latest/linux/a01droid \
-     -o artifacts/docker_app/a01droid
-chmod +x artifacts/docker_app/a01droid
-
-curl -L https://a01tools.blob.core.windows.net/droid/latest/linux/a01dispatcher \
-     -o artifacts/docker_app/a01dispatcher 
-chmod +x artifacts/docker_app/a01dispatcher
-```
 
 ## Executable /app/prepare_pod
 
