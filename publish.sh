@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # publish the droid when a version is set
-version=$1
+version=$TRAVIS_TAG
 
 if [ -z $version ]; then
     echo "Skip publishing because the version string is missing." >&2
@@ -9,11 +9,11 @@ if [ -z $version ]; then
 fi
 
 for os in linux ; do  # add darwin windows in the future
-    az storage blob upload -c droid -f ./bin/$os/a01droid -n $version/$os/a01droid --validate-content --no-progress
-    az storage blob upload -c droid -f ./bin/$os/a01droid -n latest/$os/a01droid --validate-content --no-progress
-    az storage blob upload -c droid -f ./bin/$os/a01dispatcher -n $version/$os/a01dispatcher --validate-content --no-progress
-    az storage blob upload -c droid -f ./bin/$os/a01dispatcher -n latest/$os/a01dispatcher --validate-content --no-progress
-done
+    az storage share create -n $os-$version --quota 1
+    az storage share create -n $os-latest --quota 1
 
-az storage blob list -c droid --prefix $version -otable
-az storage blob list -c droid --prefix latest -otable
+    az storage file upload -s $os-$version -f ./bin/$os/a01droid -n a01droid --validate-content --no-progress
+    az storage file upload -s $os-$version -f ./bin/$os/a01dispatcher -n a01dispatcher --validate-content --no-progress
+    az storage file upload -s $os-latest -f ./bin/$os/a01droid -n a01droid --validate-content --no-progress
+    az storage file upload -s $os-latest -f ./bin/$os/a01dispatcher -n a01dispatcher --validate-content --no-progress
+done

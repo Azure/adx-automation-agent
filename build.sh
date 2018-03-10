@@ -1,7 +1,7 @@
 #!/bin/bash
 
 root=$(cd `dirname $0`; pwd)
-version=$1
+version=$TRAVIS_TAG
 commit=${TRAVIS_COMMIT:-`git rev-parse --verify HEAD`}
 echo "Version: ${version:=`date -u +local-%Y%m%d-%H%M%S`}"
 
