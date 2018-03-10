@@ -9,11 +9,12 @@ if [ -z $version ]; then
 fi
 
 for os in linux ; do  # add darwin windows in the future
-    az storage share create -n $os-$version --quota 1
+    sharename=${version//./-}
+    az storage share create -n $os-$sharename --quota 1
     az storage share create -n $os-latest --quota 1
 
-    az storage file upload -s $os-$version --source ./bin/$os/a01droid -p a01droid --validate-content --no-progress
-    az storage file upload -s $os-$version --source ./bin/$os/a01dispatcher -p a01dispatcher --validate-content --no-progress
+    az storage file upload -s $os-$sharename --source ./bin/$os/a01droid -p a01droid --validate-content --no-progress
+    az storage file upload -s $os-$sharename --source ./bin/$os/a01dispatcher -p a01dispatcher --validate-content --no-progress
     az storage file upload -s $os-latest --source ./bin/$os/a01droid -p a01droid --validate-content --no-progress
     az storage file upload -s $os-latest --source ./bin/$os/a01dispatcher -p a01dispatcher --validate-content --no-progress
 done
