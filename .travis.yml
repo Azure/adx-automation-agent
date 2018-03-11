@@ -10,7 +10,7 @@ go:
 script:
 - go get -u github.com/golang/dep/cmd/dep
 - dep ensure
-- ./build.sh
+- ./build $TRAVIS_TAG
 deploy:
   provider: script
   script: ./scripts/publish.sh
