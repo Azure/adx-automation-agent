@@ -1,6 +1,13 @@
 package models
 
-import "github.com/Azure/adx-automation-agent/common"
+import (
+	"encoding/json"
+	"fmt"
+	"net/http"
+
+	"github.com/Azure/adx-automation-agent/common"
+	"github.com/Azure/adx-automation-agent/httputils"
+)
 
 // Run is the data structure of A01 run
 type Run struct {
@@ -19,4 +26,51 @@ func (run *Run) GetSecretName(metadata *DroidMetadata) string {
 	}
 
 	return metadata.Product
+}
+
+// Patch submit a patch
+func (run *Run) Patch() (*Run, error) {
+	body, err := json.Marshal(run)
+	if err != nil {
+		return nil, fmt.Errorf("unable to marshal in JSON: %s", err.Error())
+	}
+
+	req, err := httputils.CreateRequest(http.MethodPatch, fmt.Sprintf("run/%d", run.ID), body)
+	if err != nil {
+		return nil, err
+	}
+
+	respContent, err := httputils.SendRequest(req)
+	if err != nil {
+		return nil, err
+	}
+
+	var updated Run
+	err = json.Unmarshal(respContent, &updated)
+	if err != nil {
+		return nil, fmt.Errorf("unable to unmarshal JSON: %s", err.Error())
+	}
+
+	return &updated, nil
+}
+
+// QueryRun returns the run of the runID
+func QueryRun(runID int) (*Run, error) {
+	req, err := httputils.CreateRequest(http.MethodGet, fmt.Sprintf("run/%d", runID), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	respContent, err := httputils.SendRequest(req)
+	if err != nil {
+		return nil, err
+	}
+
+	var run Run
+	err = json.Unmarshal(respContent, &run)
+	if err != nil {
+		return nil, fmt.Errorf("unable to unmarshal JSON: %s", err.Error())
+	}
+
+	return &run, nil
 }

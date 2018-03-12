@@ -15,4 +15,5 @@ const (
 	KeyFromFailure     = "a01.reserved.fromrunfailure"
 	KeyProduct         = "a01.reserved.product"
 	KeyAgentVersion    = "a01.reserved.agentver"
+	KeyRunID           = "a01.reserved.runid"
 )

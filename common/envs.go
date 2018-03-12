@@ -15,4 +15,7 @@ const (
 
 	// EnvNodeName stores the current node name
 	EnvNodeName = "ENV_NODE_NAME"
+
+	// EnvJobName stores the parent job name if a pod is created in a job
+	EnvJobName = "ENV_JOB_NAME"
 )

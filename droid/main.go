@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"flag"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -11,15 +10,17 @@ import (
 	"os/exec"
 	"path"
 	"strings"
-	"time"
 
 	"github.com/Azure/adx-automation-agent/common"
-	"github.com/Azure/adx-automation-agent/httputils"
 	"github.com/Azure/adx-automation-agent/models"
+	"github.com/Azure/adx-automation-agent/schedule"
 )
 
 var (
-	httpClient   = &http.Client{CheckRedirect: nil}
+	taskBroker   = schedule.CreateInClusterTaskBroker()
+	jobName      = os.Getenv(common.EnvJobName)
+	podName      = os.Getenv(common.EnvPodName)
+	runID        = strings.Split(jobName, "-")[1] // the job name MUST follows the <product>-<runID>-<random ID>
 	version      = "Unknown"
 	sourceCommit = "Unknown"
 )
@@ -37,7 +38,7 @@ func ckEndpoint() {
 }
 
 func ckEnvironment() {
-	required := []string{common.EnvKeyInternalCommunicationKey}
+	required := []string{common.EnvKeyInternalCommunicationKey, common.EnvJobName}
 
 	for _, r := range required {
 		_, exists := os.LookupEnv(r)
@@ -61,128 +62,7 @@ func preparePod() {
 	log.Printf("Preparing Pod: \n%s\n", string(output))
 }
 
-// checkoutTask finds a new task to run and updates in which pod it will run (this pod!)
-func checkoutTask(runID string) (id int, err error) {
-	templateError := fmt.Sprintf("Fail to checkout task from run %s.", runID) + " Reason: %s. Exception: %s."
-	request, err := httputils.CreateRequest(http.MethodPost, fmt.Sprintf("run/%s/checkout", runID), nil)
-	if err != nil {
-		return 0, fmt.Errorf(templateError, "unable to create new request", err)
-	}
-
-	resp, err := httpClient.Do(request)
-	if err != nil {
-		return 0, fmt.Errorf(templateError, "http request failed.", err)
-	}
-
-	if resp.StatusCode == http.StatusOK {
-		// continue
-	} else if resp.StatusCode == http.StatusNoContent {
-		log.Println("No more tasks. This droid's work is done.")
-		os.Exit(0)
-	} else {
-		reason := fmt.Sprintf("status code: %d.", resp.StatusCode) + " Body %s"
-		defer resp.Body.Close()
-		b, err := ioutil.ReadAll(resp.Body)
-		if err != nil {
-			return 0, fmt.Errorf(templateError, fmt.Sprintf(reason, "fail to read."), err)
-		}
-		return 0, fmt.Errorf(templateError, fmt.Sprintf(reason, string(b)), "N/A")
-	}
-
-	defer resp.Body.Close()
-	b, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return 0, fmt.Errorf(templateError, "unable to read response body", err)
-	}
-
-	var task models.Task
-	err = json.Unmarshal(b, &task)
-	if err != nil {
-		return 0, fmt.Errorf(templateError, "unable to parse body in JSON", err)
-	}
-
-	// update task
-	if task.ResultDetails == nil {
-		task.ResultDetails = make(map[string]interface{})
-	}
-	task.ResultDetails["agent"] = fmt.Sprintf("%s@%s", os.Getenv("ENV_POD_NAME"), os.Getenv("ENV_NODE_NAME"))
-
-	err = patchTask(task)
-	if err != nil {
-		return 0, fmt.Errorf(templateError, "unable to update the task", err)
-	}
-
-	log.Printf("Checked out task %d.\n", task.ID)
-	return task.ID, nil
-}
-
-func patchTask(task models.Task) error {
-	templateError := fmt.Sprintf("Fail to path task %d.", task.ID) + " Reason: %s. Exception: %s."
-	path := fmt.Sprintf("task/%d", task.ID)
-
-	// Marshal the task
-	content, err := json.Marshal(task)
-	if err != nil {
-		return fmt.Errorf(templateError, "unable to marshal body in JSON", err)
-	}
-
-	req, err := httputils.CreateRequest(http.MethodPatch, path, content)
-	if err != nil {
-		return fmt.Errorf(templateError, "unable to create new request", err)
-	}
-
-	resp, err := httpClient.Do(req)
-	if err != nil {
-		return fmt.Errorf(templateError, "http request failed.", err)
-	}
-
-	if resp.StatusCode >= 300 {
-		reason := fmt.Sprintf("status code: %d.", resp.StatusCode) + " Body %s"
-		defer resp.Body.Close()
-		b, err := ioutil.ReadAll(resp.Body)
-		if err != nil {
-			return fmt.Errorf(templateError, fmt.Sprintf(reason, "fail to read."), err)
-		}
-		return fmt.Errorf(templateError, fmt.Sprintf(reason, string(b)), "N/A")
-	}
-
-	return nil
-}
-
-func getTask(taskID int) (task models.Task, err error) {
-	templateError := fmt.Sprintf("Fail to get task %d.", taskID) + " Reason: %s. Exception: %s."
-	path := fmt.Sprintf("task/%d", taskID)
-
-	request, err := httputils.CreateRequest(http.MethodGet, path, nil)
-	if err != nil {
-		return task, fmt.Errorf(templateError, "unable to create new request", err)
-	}
-
-	resp, err := httpClient.Do(request)
-	if err != nil {
-		return task, fmt.Errorf(templateError, "http request failed.", err)
-	}
-
-	defer resp.Body.Close()
-	b, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return task, fmt.Errorf(templateError, "unable to read response body.", err)
-	}
-
-	if resp.StatusCode >= 300 {
-		reason := fmt.Sprintf("status code: %d. Body %s", resp.StatusCode, string(b))
-		return task, fmt.Errorf(templateError, reason, "N/A")
-	}
-
-	err = json.Unmarshal(b, &task)
-	if err != nil {
-		return task, fmt.Errorf(templateError, "unable to parse body in JSON", err)
-	}
-
-	return
-}
-
-func saveTaskLog(runID string, taskID int, output []byte) error {
+func saveTaskLog(taskID int, output []byte) error {
 	stat, err := os.Stat(common.PathMountArtifacts)
 	if err == nil && stat.IsDir() {
 		runLogFolder := path.Join(common.PathMountArtifacts, runID)
@@ -202,108 +82,92 @@ func saveTaskLog(runID string, taskID int, output []byte) error {
 	return nil
 }
 
-func afterTask(taskID int) error {
-	templateError := "Fail to exectue after task action. Reason: %s. Exception: %s."
+func afterTask(taskResult *models.TaskResult) error {
 	_, err := os.Stat(common.PathScriptAfterTest)
 	if err != nil && os.IsNotExist(err) {
 		// Missing after task execuable is not considerred an error.
-		log.Printf("Skip the after task action because the executable %s doesn't exist.", common.PathScriptAfterTest)
 		return nil
 	}
 
-	task, err := getTask(taskID)
+	log.Printf("Executing after task %s.", common.PathScriptAfterTest)
+
+	taskInBytes, err := json.Marshal(taskResult)
 	if err != nil {
-		return fmt.Errorf(templateError, "unable to get the task", err)
+		return fmt.Errorf("unable to encode task to JSON: %s", err.Error())
 	}
-	taskInBytes, err := json.Marshal(task)
+
+	output, err := exec.Command(
+		common.PathScriptAfterTest,
+		common.PathMountArtifacts,
+		string(taskInBytes),
+	).CombinedOutput()
+
 	if err != nil {
-		return fmt.Errorf(templateError, "unable to encode task to JSON", err)
+		return fmt.Errorf("execution failed: %s", err.Error())
 	}
 
-	output, err := exec.Command(common.PathScriptAfterTest, common.PathMountArtifacts, string(taskInBytes)).CombinedOutput()
-	if err != nil {
-		return fmt.Errorf(templateError, "task executable failure", err)
-	}
-
-	log.Printf("After task executed.\n%s\n", string(output))
-	return nil
-}
-
-func runTask(taskID int, runID string) error {
-	templateError := fmt.Sprintf("Fail to run task %d.", taskID) + " Reason: %s. Exception: %s."
-	task, err := getTask(taskID)
-	if err != nil {
-		return fmt.Errorf(templateError, "unable to get task", err)
-	}
-
-	execution := strings.Fields(task.Settings.Execution["command"])
-
-	var cmd *exec.Cmd
-	if len(execution) < 2 {
-		cmd = exec.Command(execution[0])
-	} else {
-		cmd = exec.Command(execution[0], execution[1:]...)
-	}
-
-	begin := time.Now()
-	output, err := cmd.CombinedOutput()
-	duration := time.Now().Sub(begin) / time.Millisecond
-
-	if err == nil {
-		task.Result = "Passed"
-	} else {
-		task.Result = "Failed"
-	}
-	task.Status = "completed"
-
-	if task.ResultDetails == nil {
-		task.ResultDetails = make(map[string]interface{})
-	}
-	task.ResultDetails["duration"] = int(duration)
-
-	err = patchTask(task)
-	if err != nil {
-		return fmt.Errorf(templateError, "unable to update task", err)
-	}
-
-	err = saveTaskLog(runID, taskID, output)
-	if err != nil {
-		log.Println(err.Error())
-	}
-
-	log.Printf("[%s] Task %s", task.Result, task.Name)
+	common.LogInfo(fmt.Sprintf("After task executed. %s.", string(output)))
 	return nil
 }
 
 func main() {
-	pRunID := flag.String("run", "", "The run ID")
-	flag.Parse()
-
-	if pRunID == nil || len(*pRunID) == 0 {
-		log.Fatal("Missing runID")
-	}
-
-	log.Printf("A01 Droid Engine.\nVersion: %s.\nCommit: %s.\n", version, sourceCommit)
+	common.LogInfo(fmt.Sprintf("A01 Droid Engine.\nVersion: %s.\nCommit: %s.\n", version, sourceCommit))
+	common.LogInfo(fmt.Sprintf("Run ID: %s", runID))
 
 	ckEnvironment()
 	ckEndpoint()
+
+	queue, ch, err := taskBroker.QueueDeclare(jobName)
+	common.ExitOnError(err, "Failed to connect to the task broker.")
+
 	preparePod()
 
 	for {
-		taskID, err := checkoutTask(*pRunID)
-		if err != nil {
-			log.Fatalf(err.Error())
+		delivery, ok, err := ch.Get(queue.Name, false /* autoAck*/)
+		common.ExitOnError(err, "Failed to get a delivery.")
+
+		if !ok {
+			common.LogInfo("No more task in the queue. Exiting successfully.")
+			break
 		}
 
-		err = runTask(taskID, *pRunID)
+		var output []byte
+		var taskResult *models.TaskResult
+		var setting models.TaskSetting
+		err = json.Unmarshal(delivery.Body, &setting)
 		if err != nil {
-			log.Fatalf(err.Error())
+			errorMsg := fmt.Sprintf("Failed to unmarshel a delivery's body in JSON: %s", err.Error())
+			common.LogError(errorMsg)
+
+			taskResult = setting.CreateIncompletedTask(podName, runID, errorMsg)
+		} else {
+			common.LogInfo(fmt.Sprintf("Run task %s", setting.GetIdentifier()))
+
+			result, duration, executeOutput := setting.Execute()
+			taskResult = setting.CreateCompletedTask(result, duration, podName, runID)
+			output = executeOutput
 		}
 
-		err = afterTask(taskID)
+		taskResult, err = taskResult.CommitNew()
 		if err != nil {
-			// after task action's failure is not fatal.
-			log.Println(err.Error())
+			common.LogError(fmt.Sprintf("Failed to commit a new task: %s.", err.Error()))
+		} else {
+			err = saveTaskLog(taskResult.ID, output)
+			if err != nil {
+				common.LogError(fmt.Sprintf("Failed to save task log a new task: %s.", err.Error()))
+			}
+
+			err = afterTask(taskResult)
+			if err != nil {
+				common.LogError(fmt.Sprintf("Failed in after task: %s.", err.Error()))
+			}
+		}
+
+		err = delivery.Ack(false)
+		if err != nil {
+			common.LogError(fmt.Sprintf("Failed to ack delivery: %s", err.Error()))
+		} else {
+			common.LogInfo("ACK")
 		}
 	}
 }

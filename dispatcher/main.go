@@ -1,15 +1,12 @@
 package main
 
 import (
-	"bytes"
 	"crypto/rand"
 	"encoding/base32"
 	"encoding/json"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"log"
-	"net/http"
 	"os"
 	"os/exec"
 	"regexp"
@@ -17,18 +14,21 @@ import (
 	"strings"
 	"time"
 
+	"github.com/streadway/amqp"
+
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/Azure/adx-automation-agent/common"
-	"github.com/Azure/adx-automation-agent/httputils"
 	"github.com/Azure/adx-automation-agent/kubeutils"
 	"github.com/Azure/adx-automation-agent/models"
+	"github.com/Azure/adx-automation-agent/reportutils"
+	"github.com/Azure/adx-automation-agent/schedule"
 )
 
 var (
-	httpClient    = &http.Client{CheckRedirect: nil}
+	taskBroker    = schedule.CreateInClusterTaskBroker()
 	namespace     = common.GetCurrentNamespace("a01-prod")
 	droidMetadata = models.ReadDroidMetadata(common.PathMetadataYml)
 	clientset     = kubeutils.TryCreateKubeClientset()
@@ -37,8 +37,8 @@ var (
 )
 
 func main() {
-	info(fmt.Sprintf("A01 Droid Dispatcher.\nVersion: %s.\nCommit: %s.\n", version, sourceCommit))
-	info(fmt.Sprintf("Pod name: %s", os.Getenv(common.EnvPodName)))
+	common.LogInfo(fmt.Sprintf("A01 Droid Dispatcher.\nVersion: %s.\nCommit: %s.\n", version, sourceCommit))
+	common.LogInfo(fmt.Sprintf("Pod name: %s", os.Getenv(common.EnvPodName)))
 
 	var pRunID *int
 	pRunID = flag.Int("run", -1, "The run ID")
@@ -48,142 +48,95 @@ func main() {
 		log.Fatal("Missing runID")
 	}
 
-	run := getRun(*pRunID)
+	// query the run and then update the product name in the details
+	run, err := models.QueryRun(*pRunID)
+	common.ExitOnError(err, "fail to query the run")
 
-	err := postTasks(run, queryTests(run))
+	run.Details[common.KeyProduct] = droidMetadata.Product
+	run, err = run.Patch()
+	common.ExitOnError(err, "fail to update the run")
+
+	printRunInfo(run)
+
+	// generate a job name. the name will be used through out the remaining
+	// session to identify the group of operations and resources
+	jobName := fmt.Sprintf("%s-%d-%s", droidMetadata.Product, run.ID, getRandomString())
+
+	// publish tasks to the task broker which will establish a worker queue
+	err = publishTasks(run, jobName, queryTests(run))
+	common.ExitOnError(err, "Fail to publish tasks to the task broker.")
+	defer taskBroker.Close()
+
+	// creates a kubernete job to manage test droid
+	jobDef, err := createTaskJob(run, jobName)
 	if err != nil {
 		log.Fatal(err.Error())
 	}
 
-	jobDef, err := createTaskJob(run)
-	if err != nil {
-		log.Fatal(err.Error())
-	}
-
-	// Ignore this error for now. This API's latest version seems to sending inaccurate
-	// error
+	// ignore this error for now. This API's latest version seems to sending
+	// inaccurate error
 	job, _ := clientset.BatchV1().Jobs(namespace).Create(jobDef)
 	job, err = clientset.BatchV1().Jobs(namespace).Get(jobDef.Name, metav1.GetOptions{})
 	if err != nil {
 		log.Fatal(err.Error())
 	}
 
-	info(fmt.Sprintf("Job %s started", job.Name))
+	// begin monitoring the job status till the end
 	monitor(run, job)
 }
 
-func info(message string) {
-	log.Printf("INFO: %s", message)
-}
-
 func monitor(run *models.Run, job *batchv1.Job) {
+	common.LogInfo("Begin monitoring task execution ...")
+
+	ch, err := taskBroker.GetChannel()
+	common.PanicOnError(err, "Fail to establish channel to the task broker during monitoring.")
+
+	podListOpt := metav1.ListOptions{LabelSelector: fmt.Sprintf("job-name=%s", job.Name)}
+
 	for {
-		content, err := sendRequest(http.MethodGet, fmt.Sprintf("run/%d/tasks", run.ID), nil, "Fail to query tests. Reason %s. Exception %s.")
+		time.Sleep(time.Second * 10)
+
+		queue, err := ch.QueueInspect(job.ObjectMeta.Name)
 		if err != nil {
-			log.Println(err.Error())
+			common.LogWarning(fmt.Errorf("Fail to insepct the queue %s: %s", job.ObjectMeta.Name, err).Error())
+			continue
+		}
+		common.LogInfo(fmt.Sprintf("Messages %d => Consumers %d.", queue.Messages, queue.Consumers))
+
+		if queue.Messages != 0 {
+			// there are tasks to be run
 			continue
 		}
 
-		var tasks []models.Task
-		if err := json.Unmarshal(content, &tasks); err != nil {
-			log.Println(err.Error())
-			continue
-		}
-
-		statuses := make(map[string]int)
-		for _, task := range tasks {
-			statuses[task.Status]++
-		}
-
-		statusInfo := make([]string, 0, len(statuses))
-		for name, count := range statuses {
-			statusInfo = append(statusInfo, fmt.Sprintf("%s=%d", name, count))
-		}
-
-		info(strings.Join(statusInfo, "|"))
-
-		lostTask := make([]int, 0, 10) // those tests where pod crashes during execution therfore entering limbo
-		podList, err := clientset.CoreV1().Pods(namespace).List(metav1.ListOptions{LabelSelector: "job-name = " + job.Name})
+		// the number of the message in the queue is zero. make sure all the
+		// pods in this job have finished
+		podList, err := clientset.CoreV1().Pods(namespace).List(podListOpt)
 		if err != nil {
-			log.Println(err.Error())
+			common.LogWarning(fmt.Errorf("Fail to list pod of %s: %s", job.Name, err).Error())
 			continue
 		}
 
-		for _, task := range tasks {
-			if task.Status != "schedules" {
-				continue
-			}
-
-			if agent, ok := task.ResultDetails["agent"]; ok {
-				podName := strings.Split(agent.(string), "@")[0]
-				if len(podName) > 0 {
-					for _, pod := range podList.Items {
-						if pod.ObjectMeta.Name == podName {
-							if pod.Status.Phase != corev1.PodRunning {
-								lostTask = append(lostTask, task.ID)
-							}
-						}
-					}
-				}
+		runningPods := 0
+		for _, pod := range podList.Items {
+			if pod.Status.Phase == corev1.PodRunning {
+				runningPods++
 			}
 		}
 
-		if _, ok := statuses["initialized"]; !ok {
-			if _, ok := statuses["scheduled"]; !ok {
-				info(fmt.Sprintf("Run %d is finished", run.ID))
-				report(run)
-				os.Exit(0)
-			} else if statuses["scheduled"]-len(lostTask) == 0 {
-				info(fmt.Sprintf("Run %d is finished despite %d lost tasks.", run.ID, len(lostTask)))
-				report(run)
-				os.Exit(0)
-			}
+		if runningPods != 0 {
+			common.LogInfo(fmt.Sprintf("%d pod are still running.", runningPods))
+			continue
 		}
 
-		time.Sleep(time.Second * 30)
+		// zero task in the queue and all pod stop.
+		break
 	}
-}
 
-func report(run *models.Run) {
-	info("Sending report...")
-	if email, ok := run.Settings[common.KeyUserEmail]; ok {
-		content := make(map[string]string)
-		content["run_id"] = strconv.Itoa(run.ID)
-		content["receivers"] = email.(string)
-
-		body, err := json.Marshal(content)
-		if err != nil {
-			info("Fail to marshal JSON during request sending email.")
-			return
-		}
-
-		info(string(body))
-		req, err := http.NewRequest(
-			http.MethodPost,
-			fmt.Sprintf("http://%s/report", common.DNSNameEmailService),
-			bytes.NewBuffer(body))
-		if err != nil {
-			info("Fail to create request to requesting email.")
-			return
-		}
-		req.Header.Set("Content-Type", "application/json")
-
-		resp, err := httpClient.Do(req)
-		if err != nil {
-			info("Fail to send request to email service.")
-			return
-		}
-
-		if resp.StatusCode != http.StatusOK {
-			info("The request may have failed.")
-		}
-	} else {
-		info("Skip sending report")
-	}
+	reportutils.Report(run)
 }
 
 func queryTests(run *models.Run) []models.TaskSetting {
-	info(fmt.Sprintf("Expecting script %s.", common.PathScriptGetIndex))
+	common.LogInfo(fmt.Sprintf("Expecting script %s.", common.PathScriptGetIndex))
 	content, err := exec.Command(common.PathScriptGetIndex).Output()
 	if err != nil {
 		panic(err.Error())
@@ -196,7 +149,7 @@ func queryTests(run *models.Run) []models.TaskSetting {
 	}
 
 	if query, ok := run.Settings[common.KeyTestQuery]; ok {
-		info(fmt.Sprintf("Query string is '%s'", query))
+		common.LogInfo(fmt.Sprintf("Query string is '%s'", query))
 		result := make([]models.TaskSetting, 0, len(input))
 		for _, test := range input {
 			matched, regerr := regexp.MatchString(query.(string), test.Classifier["identifier"])
@@ -211,101 +164,64 @@ func queryTests(run *models.Run) []models.TaskSetting {
 	return input
 }
 
-func sendRequest(method string, path string, body interface{}, templateError string) ([]byte, error) {
-	var content []byte
-	if body != nil {
-		var err error
-		content, err = json.Marshal(body)
-		if err != nil {
-			return nil, fmt.Errorf(templateError, "unable to marshal the body in JSON.")
-		}
-	}
-
-	req, err := httputils.CreateRequest(method, path, content)
-	if err != nil {
-		return nil, fmt.Errorf(templateError, "unable to create request", err)
-	}
-
-	resp, err := httpClient.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf(templateError, "http request failure", err)
-	}
-
-	defer resp.Body.Close()
-	b, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf(templateError, "unable to read respond body", err)
-	}
-
-	if resp.StatusCode >= 300 {
-		reason := fmt.Sprintf("status code: %d.", resp.StatusCode) + " Body %s"
-		return nil, fmt.Errorf(templateError, fmt.Sprintf(reason, string(b)), "N/A")
-	}
-
-	return b, nil
-}
-
-// Read run data and update the run details accordingly. exit the program as fatal if failed.
-func getRun(runID int) (result *models.Run) {
-	templateError := fmt.Sprintf("Fail to get the run %d.", runID) + " Reason %s. Exception %s."
-	content, err := sendRequest(http.MethodGet, fmt.Sprintf("run/%d", runID), nil, templateError)
-	if err != nil {
-		log.Fatalf(fmt.Errorf(templateError, "http failure", err).Error())
-	}
-
-	var run models.Run
-	err = json.Unmarshal(content, &run)
-	if err != nil {
-		log.Fatalf(fmt.Errorf(templateError, "json unmarshal failure", err).Error())
-	}
-
-	info(fmt.Sprintf("Find run %d: %s.", run.ID, run.Name))
+func printRunInfo(run *models.Run) {
+	common.LogInfo(fmt.Sprintf("Find run %d: %s.", run.ID, run.Name))
 	if run.Details != nil {
-		info("  Details")
+		common.LogInfo("  Details")
 		for key, value := range run.Details {
-			info(fmt.Sprintf("    %s = %s", key, value))
+			common.LogInfo(fmt.Sprintf("    %s = %s", key, value))
 		}
 	}
 	if run.Settings != nil {
-		info("  Settings")
+		common.LogInfo("  Settings")
 		for key, value := range run.Settings {
-			info(fmt.Sprintf("    %s = %s", key, value))
+			common.LogInfo(fmt.Sprintf("    %s = %s", key, value))
+		}
+	}
+}
+
+func publishTasks(run *models.Run, jobName string, settings []models.TaskSetting) (err error) {
+	common.LogInfo(fmt.Sprintf("To schedule %d tests.", len(settings)))
+
+	_, ch, err := taskBroker.QueueDeclare(jobName)
+	if err != nil {
+		// TODO: update run's status in DB to failed
+		common.ExitOnError(err, "Fail to declare queue in task broker.")
+	}
+
+	common.LogInfo(fmt.Sprintf("Declared queue %s. Begin publishing tasks ...", jobName))
+	for _, setting := range settings {
+		body, err := json.Marshal(setting)
+		if err != nil {
+			common.LogWarning(fmt.Sprintf("Fail to marshal task %s setting in JSON. Error %s. The task is skipped.", setting, err.Error()))
+			continue
+		}
+
+		err = ch.Publish(
+			"",      // default exchange
+			jobName, // routing key
+			false,   // mandatory
+			false,   // immediate
+			amqp.Publishing{
+				DeliveryMode: amqp.Persistent,
+				ContentType:  "application/json",
+				Body:         body,
+			})
+
+		if err != nil {
+			common.LogWarning(fmt.Sprintf("Fail to publish task %s. Error %s. The task is skipped.", setting, err.Error()))
 		}
 	}
 
-	info(fmt.Sprintf("Update run product in details to %s.", droidMetadata.Product))
-	run.Details[common.KeyProduct] = droidMetadata.Product
-	_, err = sendRequest(http.MethodPatch, fmt.Sprintf("run/%d", runID), run, templateError)
-	if err != nil {
-		log.Fatal(err.Error())
-	}
+	common.LogInfo("Finish publish tasks")
 
-	return &run
+	return nil
 }
 
-func postTasks(run *models.Run, settings []models.TaskSetting) (err error) {
-	info(fmt.Sprintf("To schedule %d tests.", len(settings)))
-	err = nil
-	tasks := make([]models.Task, len(settings))
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Kubernete JOB
 
-	for idx, setting := range settings {
-		var task models.Task
-		task.Name = fmt.Sprintf("Test: %s", setting.Classifier["identifier"])
-		task.Settings = setting
-		task.Annotation = run.Settings[common.KeyImageName].(string)
-
-		tasks[idx] = task
-	}
-
-	templateError := fmt.Sprintf("Fail to create task for run %d.", run.ID) + " Reason %s. Exception %s."
-	info("Posting tasks ...")
-	_, err = sendRequest(http.MethodPost, fmt.Sprintf("run/%d/tasks", run.ID), tasks, templateError)
-	info("Finish posting tasks ...")
-
-	return
-}
-
-func createTaskJob(run *models.Run) (job *batchv1.Job, err error) {
+func createTaskJob(run *models.Run, jobName string) (job *batchv1.Job, err error) {
 	client, err := kubeutils.CreateKubeClientset()
 	if err != nil {
 		return nil, err
@@ -314,20 +230,19 @@ func createTaskJob(run *models.Run) (job *batchv1.Job, err error) {
 	parallelism := int32(run.Settings[common.KeyInitParallelism].(float64))
 	var backoff int32 = 5
 
-	name := fmt.Sprintf("%s-%d-%s", droidMetadata.Product, run.ID, getRandomString())
 	definition := batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: name,
+			Name: jobName,
 		},
 		Spec: batchv1.JobSpec{
 			Parallelism:  &parallelism,
 			BackoffLimit: &backoff,
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
-					Name: name,
+					Name: jobName,
 				},
 				Spec: corev1.PodSpec{
-					Containers:       getContainerSpecs(run),
+					Containers:       getContainerSpecs(run, jobName),
 					ImagePullSecrets: getImagePullSource(run),
 					Volumes:          getVolumes(run),
 					RestartPolicy:    corev1.RestartPolicyNever,
@@ -382,12 +297,12 @@ func getImagePullSource(run *models.Run) []corev1.LocalObjectReference {
 	return []corev1.LocalObjectReference{corev1.LocalObjectReference{Name: run.Settings[common.KeyImagePullSecret].(string)}}
 }
 
-func getContainerSpecs(run *models.Run) (containers []corev1.Container) {
+func getContainerSpecs(run *models.Run, jobName string) (containers []corev1.Container) {
 	c := corev1.Container{
 		Name:    "main",
 		Image:   run.Settings[common.KeyImageName].(string),
-		Env:     getEnvironmentVariableDef(run),
-		Command: []string{common.PathMountTools + "/a01droid", "-run", strconv.Itoa(run.ID)},
+		Env:     getEnvironmentVariableDef(run, jobName),
+		Command: []string{common.PathMountTools + "/a01droid"},
 	}
 
 	volumeMounts := []corev1.VolumeMount{
@@ -406,7 +321,7 @@ func getContainerSpecs(run *models.Run) (containers []corev1.Container) {
 	return []corev1.Container{c}
 }
 
-func getEnvironmentVariableDef(run *models.Run) []corev1.EnvVar {
+func getEnvironmentVariableDef(run *models.Run, jobName string) []corev1.EnvVar {
 	result := []corev1.EnvVar{
 		corev1.EnvVar{
 			Name:      common.EnvPodName,
@@ -414,6 +329,7 @@ func getEnvironmentVariableDef(run *models.Run) []corev1.EnvVar {
 		corev1.EnvVar{
 			Name:      common.EnvNodeName,
 			ValueFrom: &corev1.EnvVarSource{FieldRef: &corev1.ObjectFieldSelector{FieldPath: "spec.nodeName"}}},
+		corev1.EnvVar{Name: common.EnvJobName, Value: jobName},
 		corev1.EnvVar{
 			Name: common.EnvKeyInternalCommunicationKey,
 			ValueFrom: &corev1.EnvVarSource{
