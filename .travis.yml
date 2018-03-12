@@ -13,7 +13,7 @@ script:
 - ./build $TRAVIS_TAG
 deploy:
   provider: script
-  script: ./scripts/publish.sh
+  script: ./scripts/publish
   skip_cleanup: true
   on:
     tags: true
