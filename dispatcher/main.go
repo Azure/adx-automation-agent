@@ -132,7 +132,7 @@ func monitor(run *models.Run, job *batchv1.Job) {
 		break
 	}
 
-	reportutils.Report(run)
+	reportutils.Report(run, droidMetadata.Owners)
 }
 
 func queryTests(run *models.Run) []models.TaskSetting {
