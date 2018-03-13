@@ -16,4 +16,5 @@ const (
 	KeyProduct         = "a01.reserved.product"
 	KeyAgentVersion    = "a01.reserved.agentver"
 	KeyRunID           = "a01.reserved.runid"
+	KeyJobName         = "a01.reserved.jobname"
 )

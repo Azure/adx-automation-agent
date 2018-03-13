@@ -3,18 +3,12 @@ package main
 import (
 	"crypto/rand"
 	"encoding/base32"
-	"encoding/json"
 	"flag"
 	"fmt"
 	"log"
 	"os"
-	"os/exec"
-	"regexp"
 	"strconv"
 	"strings"
-	"time"
-
-	"github.com/streadway/amqp"
 
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -23,6 +17,7 @@ import (
 	"github.com/Azure/adx-automation-agent/common"
 	"github.com/Azure/adx-automation-agent/kubeutils"
 	"github.com/Azure/adx-automation-agent/models"
+	"github.com/Azure/adx-automation-agent/monitor"
 	"github.com/Azure/adx-automation-agent/reportutils"
 	"github.com/Azure/adx-automation-agent/schedule"
 )
@@ -52,170 +47,66 @@ func main() {
 	run, err := models.QueryRun(*pRunID)
 	common.ExitOnError(err, "fail to query the run")
 
-	run.Details[common.KeyProduct] = droidMetadata.Product
-	run, err = run.Patch()
-	common.ExitOnError(err, "fail to update the run")
+	if run.Status == common.RunStatusInitialized || len(run.Status) == 0 {
+		run.Details[common.KeyProduct] = droidMetadata.Product
+		run, err = run.SubmitChange()
+		common.ExitOnError(err, "fail to update the run")
 
-	printRunInfo(run)
+		run.PrintInfo()
 
-	// generate a job name. the name will be used through out the remaining
-	// session to identify the group of operations and resources
-	jobName := fmt.Sprintf("%s-%d-%s", droidMetadata.Product, run.ID, getRandomString())
+		// generate a job name. the name will be used through out the remaining
+		// session to identify the group of operations and resources
+		jobName := fmt.Sprintf("%s-%d-%s", droidMetadata.Product, run.ID, getRandomString())
 
-	// publish tasks to the task broker which will establish a worker queue
-	err = publishTasks(run, jobName, queryTests(run))
-	common.ExitOnError(err, "Fail to publish tasks to the task broker.")
-	defer taskBroker.Close()
+		// publish tasks to the task broker which will establish a worker queue
+		err = taskBroker.PublishTasks(jobName, run.QueryTests())
+		common.ExitOnError(err, "Fail to publish tasks to the task broker.")
+		defer taskBroker.Close()
 
-	// creates a kubernete job to manage test droid
-	jobDef, err := createTaskJob(run, jobName)
-	if err != nil {
-		log.Fatal(err.Error())
+		// update the run status and add job name
+		run.Status = common.RunStatusPublished
+		run.Details[common.KeyJobName] = jobName
+		run, err = run.SubmitChange()
+		common.ExitOnError(err, "fail to update the run")
 	}
 
-	// ignore this error for now. This API's latest version seems to sending
-	// inaccurate error
-	job, _ := clientset.BatchV1().Jobs(namespace).Create(jobDef)
-	job, err = clientset.BatchV1().Jobs(namespace).Get(jobDef.Name, metav1.GetOptions{})
-	if err != nil {
-		log.Fatal(err.Error())
-	}
+	if run.Status == common.RunStatusPublished {
+		jobName := run.Details[common.KeyJobName]
 
-	// begin monitoring the job status till the end
-	monitor(run, job)
-}
-
-func monitor(run *models.Run, job *batchv1.Job) {
-	common.LogInfo("Begin monitoring task execution ...")
-
-	ch, err := taskBroker.GetChannel()
-	common.PanicOnError(err, "Fail to establish channel to the task broker during monitoring.")
-
-	podListOpt := metav1.ListOptions{LabelSelector: fmt.Sprintf("job-name=%s", job.Name)}
-
-	for {
-		time.Sleep(time.Second * 10)
-
-		queue, err := ch.QueueInspect(job.ObjectMeta.Name)
+		// creates a kubernete job to manage test droid
+		jobDef, err := createTaskJob(run, jobName)
 		if err != nil {
-			common.LogWarning(fmt.Errorf("Fail to insepct the queue %s: %s", job.ObjectMeta.Name, err).Error())
-			continue
-		}
-		common.LogInfo(fmt.Sprintf("Messages %d => Consumers %d.", queue.Messages, queue.Consumers))
-
-		if queue.Messages != 0 {
-			// there are tasks to be run
-			continue
+			log.Fatal(err.Error())
 		}
 
-		// the number of the message in the queue is zero. make sure all the
-		// pods in this job have finished
-		podList, err := clientset.CoreV1().Pods(namespace).List(podListOpt)
+		// ignore this error for now. This API's latest version seems to sending
+		// inaccurate error
+		clientset.BatchV1().Jobs(namespace).Create(jobDef)
+		_, err = clientset.BatchV1().Jobs(namespace).Get(jobDef.Name, metav1.GetOptions{})
 		if err != nil {
-			common.LogWarning(fmt.Errorf("Fail to list pod of %s: %s", job.Name, err).Error())
-			continue
+			log.Fatal(err.Error())
 		}
 
-		runningPods := 0
-		for _, pod := range podList.Items {
-			if pod.Status.Phase == corev1.PodRunning {
-				runningPods++
-			}
-		}
-
-		if runningPods != 0 {
-			common.LogInfo(fmt.Sprintf("%d pod are still running.", runningPods))
-			continue
-		}
-
-		// zero task in the queue and all pod stop.
-		break
+		run.Status = common.RunStatusRunning
+		run, err = run.SubmitChange()
+		common.ExitOnError(err, "fail to update the run")
 	}
 
-	reportutils.Report(run, droidMetadata.Owners)
-}
+	if run.Status == common.RunStatusRunning {
+		// begin monitoring the job status till the end
+		monitor.WaitTasks(taskBroker, run)
+		reportutils.Report(run, droidMetadata.Owners)
 
-func queryTests(run *models.Run) []models.TaskSetting {
-	common.LogInfo(fmt.Sprintf("Expecting script %s.", common.PathScriptGetIndex))
-	content, err := exec.Command(common.PathScriptGetIndex).Output()
-	if err != nil {
-		panic(err.Error())
+		run.Status = common.RunStatusCompleted
+		run, err = run.SubmitChange()
+		common.ExitOnError(err, "fail to update the run")
 	}
 
-	var input []models.TaskSetting
-	err = json.Unmarshal(content, &input)
-	if err != nil {
-		panic(err.Error())
+	if run.Status == common.RunStatusCompleted {
+		run.PrintInfo()
+		common.LogInfo("The run was already completed.")
+		os.Exit(0)
 	}
-
-	if query, ok := run.Settings[common.KeyTestQuery]; ok {
-		common.LogInfo(fmt.Sprintf("Query string is '%s'", query))
-		result := make([]models.TaskSetting, 0, len(input))
-		for _, test := range input {
-			matched, regerr := regexp.MatchString(query.(string), test.Classifier["identifier"])
-			if matched && regerr == nil {
-				result = append(result, test)
-			}
-		}
-
-		return result
-	}
-
-	return input
-}
-
-func printRunInfo(run *models.Run) {
-	common.LogInfo(fmt.Sprintf("Find run %d: %s.", run.ID, run.Name))
-	if run.Details != nil {
-		common.LogInfo("  Details")
-		for key, value := range run.Details {
-			common.LogInfo(fmt.Sprintf("    %s = %s", key, value))
-		}
-	}
-	if run.Settings != nil {
-		common.LogInfo("  Settings")
-		for key, value := range run.Settings {
-			common.LogInfo(fmt.Sprintf("    %s = %s", key, value))
-		}
-	}
-}
-
-func publishTasks(run *models.Run, jobName string, settings []models.TaskSetting) (err error) {
-	common.LogInfo(fmt.Sprintf("To schedule %d tests.", len(settings)))
-
-	_, ch, err := taskBroker.QueueDeclare(jobName)
-	if err != nil {
-		// TODO: update run's status in DB to failed
-		common.ExitOnError(err, "Fail to declare queue in task broker.")
-	}
-
-	common.LogInfo(fmt.Sprintf("Declared queue %s. Begin publishing tasks ...", jobName))
-	for _, setting := range settings {
-		body, err := json.Marshal(setting)
-		if err != nil {
-			common.LogWarning(fmt.Sprintf("Fail to marshal task %s setting in JSON. Error %s. The task is skipped.", setting, err.Error()))
-			continue
-		}
-
-		err = ch.Publish(
-			"",      // default exchange
-			jobName, // routing key
-			false,   // mandatory
-			false,   // immediate
-			amqp.Publishing{
-				DeliveryMode: amqp.Persistent,
-				ContentType:  "application/json",
-				Body:         body,
-			})
-
-		if err != nil {
-			common.LogWarning(fmt.Sprintf("Fail to publish task %s. Error %s. The task is skipped.", setting, err.Error()))
-		}
-	}
-
-	common.LogInfo("Finish publish tasks")
-
-	return nil
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

@@ -1,9 +1,11 @@
 package schedule
 
 import (
+	"encoding/json"
 	"fmt"
 
 	"github.com/Azure/adx-automation-agent/common"
+	"github.com/Azure/adx-automation-agent/models"
 	"github.com/streadway/amqp"
 )
 
@@ -73,6 +75,46 @@ func (broker *TaskBroker) QueueDeclare(name string) (queue amqp.Queue, ch *amqp.
 	broker.declaredQueues = append(broker.declaredQueues, queue.Name)
 
 	return
+}
+
+// PublishTasks publishes the tasks to the queue specified by the given name. The queue will be
+// declared if it doesn't already exist.
+func (broker *TaskBroker) PublishTasks(queueName string, settings []models.TaskSetting) (err error) {
+	common.LogInfo(fmt.Sprintf("To schedule %d tests.", len(settings)))
+
+	_, ch, err := broker.QueueDeclare(queueName)
+	if err != nil {
+		// TODO: update run's status in DB to failed
+		return fmt.Errorf("fail to decalre queue: %s", err.Error())
+	}
+
+	common.LogInfo(fmt.Sprintf("Declared queue %s. Begin publishing tasks ...", queueName))
+	for _, setting := range settings {
+		body, err := json.Marshal(setting)
+		if err != nil {
+			common.LogWarning(fmt.Sprintf("Fail to marshal task %s setting in JSON. Error %s. The task is skipped.", setting, err.Error()))
+			continue
+		}
+
+		err = ch.Publish(
+			"",        // default exchange
+			queueName, // routing key
+			false,     // mandatory
+			false,     // immediate
+			amqp.Publishing{
+				DeliveryMode: amqp.Persistent,
+				ContentType:  "application/json",
+				Body:         body,
+			})
+
+		if err != nil {
+			common.LogWarning(fmt.Sprintf("Fail to publish task %s. Error %s. The task is skipped.", setting, err.Error()))
+		}
+	}
+
+	common.LogInfo("Finish publish tasks")
+
+	return nil
 }
 
 // Close the channel and connection
