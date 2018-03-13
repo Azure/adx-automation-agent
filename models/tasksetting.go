@@ -2,9 +2,9 @@ package models
 
 import (
 	"fmt"
+	"os"
 	"os/exec"
 	"strconv"
-	"strings"
 	"time"
 )
 
@@ -21,14 +21,14 @@ func (setting *TaskSetting) GetIdentifier() string {
 	return setting.Classifier["identifier"]
 }
 
-// GetCommand returns the string slice of the command to execute
-func (setting *TaskSetting) GetCommand() []string {
-	return strings.Fields(setting.Execution["command"])
-}
-
 // Execute runs the command and returns the execution results
 func (setting *TaskSetting) Execute() (result string, duration int, output []byte) {
-	execution := setting.GetCommand()
+	shellExec := "/bin/bash"
+	if _, err := os.Stat("/bin/bash"); os.IsNotExist(err) {
+		shellExec = "/bin/sh"
+	}
+
+	execution := []string{shellExec, "-c", setting.Execution["command"]}
 	var cmd *exec.Cmd
 	if len(execution) < 2 {
 		cmd = exec.Command(execution[0])
