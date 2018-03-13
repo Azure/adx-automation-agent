@@ -34,7 +34,7 @@ func Report(run *models.Run, receivers []string) {
 	if len(receivers) > 0 {
 		content := make(map[string]string)
 		content["run_id"] = strconv.Itoa(run.ID)
-		content["receivers"] = strings.Join(receivers, ", ")
+		content["receivers"] = strings.Join(receivers, ",")
 
 		body, err := json.Marshal(content)
 		if err != nil {
