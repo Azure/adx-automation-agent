@@ -14,7 +14,6 @@ type DroidMetadata struct {
 	Product      string                `yaml:"product"`
 	Storage      bool                  `yaml:"storage"`
 	Environments []DroidMetadataEnvDef `yaml:"environments"`
-	Owners       []string              `yaml:"owners"`
 }
 
 // DroidMetadataEnvDef defines the data model of the environment variable definition in metadata.yml

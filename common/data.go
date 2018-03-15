@@ -4,7 +4,7 @@ package common
 const (
 	KeyImageName       = "a01.reserved.imagename"
 	KeyImagePullSecret = "a01.reserved.imagepullsecret"
-	KeySecrectName     = "a01.reserved.secret"
+	KeySecretName      = "a01.reserved.secret"
 	KeyStorageShare    = "a01.reserved.storageshare"
 	KeyTestQuery       = "a01.reserved.testquery"
 	KeyUserEmail       = "a01.reserved.useremail"

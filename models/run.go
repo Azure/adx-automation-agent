@@ -24,7 +24,7 @@ type Run struct {
 // It first tries to find the secret name in the run settings. If the run's settings do not contain the property,
 // falls back to the prodcut name in the metadata.
 func (run *Run) GetSecretName(metadata *DroidMetadata) string {
-	if v, ok := run.Settings[common.KeySecrectName]; ok && len(v.(string)) >= 0 {
+	if v, ok := run.Settings[common.KeySecretName]; ok && len(v.(string)) >= 0 {
 		return v.(string)
 	}
 

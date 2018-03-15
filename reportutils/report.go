@@ -19,11 +19,7 @@ func Report(run *models.Run, receivers []string) {
 	common.LogInfo("Sending report...")
 
 	remark, ok := run.Settings[common.KeyRemark]
-	if ok && strings.ToLower(remark.(string)) == "official" {
-		for i := range receivers {
-			receivers[i] = fmt.Sprintf("%s@microsoft.com", receivers[i])
-		}
-	} else {
+	if ok && strings.ToLower(remark.(string)) != "official" {
 		receivers = []string{}
 	}
 

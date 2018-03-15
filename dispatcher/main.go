@@ -95,7 +95,17 @@ func main() {
 	if run.Status == common.RunStatusRunning {
 		// begin monitoring the job status till the end
 		monitor.WaitTasks(taskBroker, run)
-		reportutils.Report(run, droidMetadata.Owners)
+
+		secret, err := kubeutils.TryCreateKubeClientset().
+			CoreV1().
+			Secrets(namespace).
+			Get(run.GetSecretName(droidMetadata), metav1.GetOptions{})
+		if err != nil {
+			common.ExitOnError(err, "Failed to get the kubernetes secret")
+		}
+
+		owners := string(secret.Data["owners"])
+		reportutils.Report(run, strings.Split(owners, ","))
 
 		run.Status = common.RunStatusCompleted
 		run, err = run.SubmitChange()
