@@ -3,7 +3,6 @@ package main
 import (
 	"crypto/rand"
 	"encoding/base32"
-	"encoding/base64"
 	"flag"
 	"fmt"
 	"log"
@@ -105,12 +104,8 @@ func main() {
 			common.ExitOnError(err, "Failed to get the kubernetes secret")
 		}
 
-		owners, err := base64.StdEncoding.DecodeString(string(secret.Data["owners"]))
-		if err != nil {
-			common.ExitOnError(err, "Failed to decode the kubernetes secret datax")
-		}
-
-		reportutils.Report(run, strings.Split(string(owners), ","))
+		owners := string(secret.Data["owners"])
+		reportutils.Report(run, strings.Split(owners, ","))
 
 		run.Status = common.RunStatusCompleted
 		run, err = run.SubmitChange()
