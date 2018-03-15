@@ -3,6 +3,7 @@ package main
 import (
 	"crypto/rand"
 	"encoding/base32"
+	"encoding/base64"
 	"flag"
 	"fmt"
 	"log"
@@ -95,7 +96,21 @@ func main() {
 	if run.Status == common.RunStatusRunning {
 		// begin monitoring the job status till the end
 		monitor.WaitTasks(taskBroker, run)
-		reportutils.Report(run, droidMetadata.Owners)
+
+		secret, err := kubeutils.TryCreateKubeClientset().
+			CoreV1().
+			Secrets(namespace).
+			Get(run.GetSecretName(droidMetadata), metav1.GetOptions{})
+		if err != nil {
+			common.ExitOnError(err, "Failed to get the kubernetes secret")
+		}
+
+		owners, err := base64.StdEncoding.DecodeString(string(secret.Data["owners"]))
+		if err != nil {
+			common.ExitOnError(err, "Failed to decode the kubernetes secret datax")
+		}
+
+		reportutils.Report(run, strings.Split(string(owners), ","))
 
 		run.Status = common.RunStatusCompleted
 		run, err = run.SubmitChange()

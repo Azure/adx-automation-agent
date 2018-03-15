@@ -10,7 +10,7 @@ const (
 	PathMetadataYml      = "/app/metadata.yml"
 )
 
-// Defines the Kubernetes specifci paths
+// Defines the Kubernetes specific paths
 const (
 	PathKubeNamespace = "/var/run/secrets/kubernetes.io/serviceaccount/namespace"
 )
