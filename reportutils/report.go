@@ -15,7 +15,7 @@ import (
 var httpClient = &http.Client{}
 
 // Report method requests the email service to send emails
-func Report(run *models.Run, receivers []string) {
+func Report(run *models.Run, receivers []string, templateURL string) {
 	common.LogInfo("Sending report...")
 
 	remark, ok := run.Settings[common.KeyRemark]
@@ -31,6 +31,7 @@ func Report(run *models.Run, receivers []string) {
 		content := make(map[string]string)
 		content["run_id"] = strconv.Itoa(run.ID)
 		content["receivers"] = strings.Join(receivers, ",")
+		content["template"] = templateURL
 
 		body, err := json.Marshal(content)
 		if err != nil {

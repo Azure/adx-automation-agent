@@ -105,7 +105,8 @@ func main() {
 		}
 
 		owners := string(secret.Data["owners"])
-		reportutils.Report(run, strings.Split(owners, ","))
+		templateURL := string(secret.Data["email.path.template"])
+		reportutils.Report(run, strings.Split(owners, ","), templateURL)
 
 		run.Status = common.RunStatusCompleted
 		run, err = run.SubmitChange()
