@@ -38,8 +38,8 @@ func WaitTasks(taskBroker *schedule.TaskBroker, run *models.Run) {
 
 		queue, err := ch.QueueInspect(jobName)
 		if err != nil {
-			common.LogWarning(fmt.Errorf("Fail to insepct the queue %s: %s", jobName, err).Error())
-			continue
+			common.LogInfo("The queue doesn't exist. All tasks have been exectued.")
+			break
 		}
 		common.LogInfo(fmt.Sprintf("Queue: messages %d.", queue.Messages))
 
