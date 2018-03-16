@@ -105,8 +105,13 @@ func main() {
 		}
 
 		owners := string(secret.Data["owners"])
-		templateURL := string(secret.Data["email.path.template"])
-		reportutils.Report(run, strings.Split(owners, ","), templateURL)
+		templateURL, ok := secret.Data["email.path.template"]
+		if ok {
+			reportutils.Report(run, strings.Split(owners, ","), string(templateURL))
+		} else {
+			common.LogWarning("Failed to get the `email.path.template` value from the kubernetes secret. A generic template will be used instead")
+			reportutils.Report(run, strings.Split(owners, ","), "")
+		}
 
 		run.Status = common.RunStatusCompleted
 		run, err = run.SubmitChange()
