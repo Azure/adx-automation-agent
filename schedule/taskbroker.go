@@ -3,6 +3,9 @@ package schedule
 import (
 	"encoding/json"
 	"fmt"
+	"log"
+
+	"github.com/Azure/adx-automation-agent/kubeutils"
 
 	"github.com/Azure/adx-automation-agent/common"
 	"github.com/Azure/adx-automation-agent/models"
@@ -142,7 +145,34 @@ func CreateLocalTaskBroker() *TaskBroker {
 
 // CreateInClusterTaskBroker returns a in-cluster task broker instance
 func CreateInClusterTaskBroker() *TaskBroker {
+	endpoint, exists := kubeutils.TryGetSystemConfig(common.ConfigKeyEndpointTaskBroker)
+	if !exists {
+		log.Fatalln("Fail to fetch taskbroker's endpoint from system config.")
+	}
+
+	username, exists := kubeutils.TryGetSystemConfig(common.ConfigKeyUsernameTaskBroker)
+	if !exists {
+		log.Fatalln("Fail to fetch taskbroker's user name from system config.")
+	}
+
+	secretname, exists := kubeutils.TryGetSystemConfig(common.ConfigKeySecretTaskBroker)
+	if !exists {
+		log.Fatalln("Fail to fetch taskbroker's secret name from system config.")
+	}
+
+	passwordKey, exists := kubeutils.TryGetSystemConfig(common.ConfigKeyPasswordKeyTaskBroker)
+	if !exists {
+		log.Fatalln("Fail to fetch taskbroker's password key name from system config.")
+	}
+
+	passwordInBytes, exists := kubeutils.TryGetSecretInBytes(secretname, passwordKey)
+	if !exists {
+		log.Fatalf("Fail to fetch taskbroker's password from secret %s using key %s.", secretname, passwordKey)
+	}
+
+	password := string(passwordInBytes)
+
 	return &TaskBroker{
-		ConnectionName: fmt.Sprintf("amqp://%s:5672", common.DNSNameTaskBroker),
+		ConnectionName: fmt.Sprintf("amqp://%s:%s@%s:5672", username, password, endpoint),
 	}
 }

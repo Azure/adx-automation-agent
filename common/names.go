@@ -10,8 +10,8 @@ const (
 	StorageVolumeNameTools     = "tools-storage"
 	DNSNameTaskStore           = "store-internal-svc"
 	DNSNameEmailService        = "email-internal-svc"
-	DNSNameTaskBroker          = "taskbroker-internal-svc"
 	SecretNameAgents           = "agent-secrets"
+	SystemConfigmapName        = "a01-system-config"
 )
 
 const (
@@ -26,6 +26,14 @@ const (
 
 	// RunStatusCompleted is set when all tasks are accomplished
 	RunStatusCompleted = "Completed"
+)
+
+// Defines well-known keys in the a01 system config
+const (
+	ConfigKeyEndpointTaskBroker    = "endpoint.taskbroker"
+	ConfigKeyUsernameTaskBroker    = "username.taskbroker"
+	ConfigKeyPasswordKeyTaskBroker = "password.taskbroker"
+	ConfigKeySecretTaskBroker      = "secret.taskbroker"
 )
 
 // GetCurrentNamespace returns the namespace this Pod belongs to. If it fails

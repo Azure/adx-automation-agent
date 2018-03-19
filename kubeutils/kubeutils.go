@@ -5,6 +5,8 @@ import (
 	"os/user"
 	"path/filepath"
 
+	"github.com/Azure/adx-automation-agent/common"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -43,4 +45,36 @@ func TryCreateKubeClientset() *kubernetes.Clientset {
 		return client
 	}
 	return nil
+}
+
+// TryGetSystemConfig retrives the value of given key in a01 system config.
+func TryGetSystemConfig(key string) (value string, exists bool) {
+	clientset := TryCreateKubeClientset()
+	if clientset == nil {
+		return "", false
+	}
+
+	configmap, err := clientset.CoreV1().ConfigMaps(common.GetCurrentNamespace("default")).Get(common.SystemConfigmapName, metav1.GetOptions{})
+	if err != nil {
+		return "", false
+	}
+
+	value, exists = configmap.Data[key]
+	return
+}
+
+// TryGetSecretInBytes retrieves the value of given key in the given secret in current namespace.
+func TryGetSecretInBytes(secret string, key string) (value []byte, exists bool) {
+	clientset := TryCreateKubeClientset()
+	if clientset == nil {
+		return nil, false
+	}
+
+	sec, err := clientset.CoreV1().Secrets(common.GetCurrentNamespace("default")).Get(secret, metav1.GetOptions{})
+	if err != nil {
+		return nil, false
+	}
+
+	value, exists = sec.Data[key]
+	return
 }
