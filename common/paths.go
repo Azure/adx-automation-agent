@@ -14,3 +14,10 @@ const (
 const (
 	PathKubeNamespace = "/var/run/secrets/kubernetes.io/serviceaccount/namespace"
 )
+
+// Defines the path template for logs
+const (
+	// PathTemplateTaskLog defines the relative path of a task's log file in a file share.
+	// It is <run_id>/task_<task_id>.log
+	PathTemplateTaskLog = "%d/task_%d.log"
+)

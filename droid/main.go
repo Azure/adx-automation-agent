@@ -3,13 +3,14 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"log"
-	"net/http"
 	"os"
 	"os/exec"
 	"path"
+	"strconv"
 	"strings"
+
+	"github.com/Azure/adx-automation-agent/kubeutils"
 
 	"github.com/Azure/adx-automation-agent/common"
 	"github.com/Azure/adx-automation-agent/models"
@@ -17,25 +18,15 @@ import (
 )
 
 var (
-	taskBroker   = schedule.CreateInClusterTaskBroker()
-	jobName      = os.Getenv(common.EnvJobName)
-	podName      = os.Getenv(common.EnvPodName)
-	runID        = strings.Split(jobName, "-")[1] // the job name MUST follows the <product>-<runID>-<random ID>
-	version      = "Unknown"
-	sourceCommit = "Unknown"
+	taskBroker      = schedule.CreateInClusterTaskBroker()
+	jobName         = os.Getenv(common.EnvJobName)
+	podName         = os.Getenv(common.EnvPodName)
+	runID           = strings.Split(jobName, "-")[1] // the job name MUST follows the <product>-<runID>-<random ID>
+	productName     = strings.Split(jobName, "-")[0] // the job name MUST follows the <product>-<runID>-<random ID>
+	logPathTemplate = ""
+	version         = "Unknown"
+	sourceCommit    = "Unknown"
 )
-
-func ckEndpoint() {
-	url := fmt.Sprintf("http://%s/api/healthy", common.DNSNameTaskStore)
-	resp, err := http.Get(url)
-	if err != nil {
-		log.Fatalf("Fail to get response from %s. Error %s.\n", url, err)
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		log.Fatalf("The endpoint is not healthy. Status code: %d.\n", resp.StatusCode)
-	}
-}
 
 func ckEnvironment() {
 	required := []string{common.EnvKeyInternalCommunicationKey, common.EnvJobName}
@@ -60,26 +51,6 @@ func preparePod() {
 		log.Fatalf("Fail to prepare the pod: %s.\n%s\n", err, string(output))
 	}
 	log.Printf("Preparing Pod: \n%s\n", string(output))
-}
-
-func saveTaskLog(taskID int, output []byte) error {
-	stat, err := os.Stat(common.PathMountArtifacts)
-	if err == nil && stat.IsDir() {
-		runLogFolder := path.Join(common.PathMountArtifacts, runID)
-		os.Mkdir(runLogFolder, os.ModeDir)
-
-		taskLogFile := path.Join(runLogFolder, fmt.Sprintf("task_%d.log", taskID))
-		err = ioutil.WriteFile(taskLogFile, output, 0644)
-		if err != nil {
-			return fmt.Errorf("Fail to save task log. Reason: unable to write file. Exception: %s", err)
-		}
-		return nil
-	}
-
-	// the mount directory doesn't exist, output the log to stdout and let the pod logs handle it.
-	log.Println("Storage volume is not mount for logging. Print the task output to the stdout instead.")
-	log.Println("\n" + string(output))
-	return nil
 }
 
 func afterTask(taskResult *models.TaskResult) error {
@@ -115,10 +86,15 @@ func main() {
 	common.LogInfo(fmt.Sprintf("Run ID: %s", runID))
 
 	ckEnvironment()
-	ckEndpoint()
 
 	queue, ch, err := taskBroker.QueueDeclare(jobName)
 	common.ExitOnError(err, "Failed to connect to the task broker.")
+
+	if bLogPathTempalte, exists := kubeutils.TryGetSecretInBytes(
+		productName,
+		common.ProductSecretKeyLogPathTemplate); exists {
+		logPathTemplate = string(bLogPathTempalte)
+	}
 
 	preparePod()
 
@@ -152,14 +128,33 @@ func main() {
 		if err != nil {
 			common.LogError(fmt.Sprintf("Failed to commit a new task: %s.", err.Error()))
 		} else {
-			err = saveTaskLog(taskResult.ID, output)
+			taskLogPath, err := taskResult.SaveTaskLog(output)
 			if err != nil {
-				common.LogError(fmt.Sprintf("Failed to save task log a new task: %s.", err.Error()))
+				common.LogError(err.Error())
 			}
 
 			err = afterTask(taskResult)
 			if err != nil {
 				common.LogError(fmt.Sprintf("Failed in after task: %s.", err.Error()))
+			}
+
+			if len(logPathTemplate) > 0 {
+				taskResult.ResultDetails[common.KeyTaskLogPath] = strings.Replace(
+					logPathTemplate,
+					"{}",
+					taskLogPath,
+					1)
+
+				taskResult.ResultDetails[common.KeyTaskRecordPath] = strings.Replace(
+					logPathTemplate,
+					"{}",
+					path.Join(strconv.Itoa(taskResult.RunID), fmt.Sprintf("recording_%d.yaml", taskResult.ID)),
+					1)
+
+				_, err := taskResult.CommitChanges()
+				if err != nil {
+					common.LogError(err.Error())
+				}
 			}
 		}
 

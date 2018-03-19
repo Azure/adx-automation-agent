@@ -36,6 +36,11 @@ const (
 	ConfigKeySecretTaskBroker      = "secret.taskbroker"
 )
 
+// Defines well-known keys in a product specific secret
+const (
+	ProductSecretKeyLogPathTemplate = "log.path.template"
+)
+
 // GetCurrentNamespace returns the namespace this Pod belongs to. If it fails
 // to resolve the name, it uses the fallback name.
 func GetCurrentNamespace(fallback string) string {
