@@ -133,14 +133,16 @@ func createTaskJob(run *models.Run, jobName string) (job *batchv1.Job, err error
 
 	definition := batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: jobName,
+			Name:   jobName,
+			Labels: getLabels(run),
 		},
 		Spec: batchv1.JobSpec{
 			Parallelism:  &parallelism,
 			BackoffLimit: &backoff,
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
-					Name: jobName,
+					Name:   jobName,
+					Labels: getLabels(run),
 				},
 				Spec: corev1.PodSpec{
 					Containers:       getContainerSpecs(run, jobName),
