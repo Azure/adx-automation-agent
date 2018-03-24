@@ -2,6 +2,21 @@
 
 
 [[projects]]
+  name = "github.com/Azure/azure-sdk-for-go"
+  packages = ["."]
+  revision = "0fbd37144de3adc2aef74db867c0e15e41c7f74a"
+  version = "v1.2"
+
+[[projects]]
+  name = "github.com/MSOpenTech/azure-sdk-for-go"
+  packages = [
+    "core/http",
+    "core/tls"
+  ]
+  revision = "0fbd37144de3adc2aef74db867c0e15e41c7f74a"
+  version = "v1.2"
+
+[[projects]]
   name = "github.com/ghodss/yaml"
   packages = ["."]
   revision = "0ca9ea5df5451ffdf184b4428c902747c2c11cd7"
@@ -166,6 +181,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "8214115416b053d98d440acb58009844d1b37de2d9c00b48efbeea70b8293123"
+  inputs-digest = "1160e3417af079c11d2b87d14a7a8df6ca14d114c9967381ed5ccd9657e009cf"
   solver-name = "gps-cdcl"
   solver-version = 1

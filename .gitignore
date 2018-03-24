@@ -19,5 +19,9 @@ bin/
 
 vendor/
 
+# Prevent secret from being checked in
 secret
 secrets
+
+# Azure
+.azure-config
