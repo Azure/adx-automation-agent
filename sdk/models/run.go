@@ -8,8 +8,8 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/Azure/adx-automation-agent/common"
-	"github.com/Azure/adx-automation-agent/httputils"
+	"github.com/Azure/adx-automation-agent/sdk/common"
+	"github.com/Azure/adx-automation-agent/sdk/httputils"
 )
 
 // Run is the data structure of A01 run

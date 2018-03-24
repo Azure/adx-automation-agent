@@ -5,7 +5,7 @@ import (
 	"os/user"
 	"path/filepath"
 
-	"github.com/Azure/adx-automation-agent/common"
+	"github.com/Azure/adx-automation-agent/sdk/common"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"

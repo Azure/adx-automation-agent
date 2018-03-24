@@ -10,11 +10,11 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/Azure/adx-automation-agent/kubeutils"
+	"github.com/Azure/adx-automation-agent/sdk/kubeutils"
 
-	"github.com/Azure/adx-automation-agent/common"
-	"github.com/Azure/adx-automation-agent/models"
-	"github.com/Azure/adx-automation-agent/schedule"
+	"github.com/Azure/adx-automation-agent/sdk/common"
+	"github.com/Azure/adx-automation-agent/sdk/models"
+	"github.com/Azure/adx-automation-agent/sdk/schedule"
 )
 
 var (

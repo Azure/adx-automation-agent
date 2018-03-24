@@ -10,8 +10,8 @@ import (
 	"path"
 	"strconv"
 
-	"github.com/Azure/adx-automation-agent/common"
-	"github.com/Azure/adx-automation-agent/httputils"
+	"github.com/Azure/adx-automation-agent/sdk/common"
+	"github.com/Azure/adx-automation-agent/sdk/httputils"
 )
 
 // TaskResult is the data model of a task in A01 system

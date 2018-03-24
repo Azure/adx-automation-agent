@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/Azure/adx-automation-agent/common"
+	"github.com/Azure/adx-automation-agent/sdk/common"
 )
 
 // getEndpointFromEnv returns the endpoint defined in the environment

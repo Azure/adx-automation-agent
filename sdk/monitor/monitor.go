@@ -7,10 +7,10 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/Azure/adx-automation-agent/common"
-	"github.com/Azure/adx-automation-agent/kubeutils"
-	"github.com/Azure/adx-automation-agent/models"
-	"github.com/Azure/adx-automation-agent/schedule"
+	"github.com/Azure/adx-automation-agent/sdk/common"
+	"github.com/Azure/adx-automation-agent/sdk/kubeutils"
+	"github.com/Azure/adx-automation-agent/sdk/models"
+	"github.com/Azure/adx-automation-agent/sdk/schedule"
 )
 
 const (

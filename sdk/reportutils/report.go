@@ -8,8 +8,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/Azure/adx-automation-agent/common"
-	"github.com/Azure/adx-automation-agent/models"
+	"github.com/Azure/adx-automation-agent/sdk/common"
+	"github.com/Azure/adx-automation-agent/sdk/models"
 )
 
 var httpClient = &http.Client{}

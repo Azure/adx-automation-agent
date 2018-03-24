@@ -16,7 +16,7 @@ for os in linux; do  # add darwin and windows in the future
         artifact=$root/bin/$os/a01$agent_name
         go build -o $artifact \
                  -ldflags "-X main.version=$version -X main.sourceCommit=$commit" \
-                 github.com/Azure/adx-automation-agent/agents/$agent_name
+                 agents/$agent_name/main.go
         chmod +x $artifact
     done
 done
