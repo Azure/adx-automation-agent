@@ -18,8 +18,10 @@ var httpClient = &http.Client{}
 func Report(run *models.Run, receivers []string, templateURL string) {
 	common.LogInfo("Sending report...")
 
+	// Emails should not be sent to all the team if the run was not set with a remark
+	// Only acceptable remark for sending emails to whole team is 'official'
 	remark, ok := run.Settings[common.KeyRemark]
-	if ok && strings.ToLower(remark.(string)) != "official" {
+	if !ok || (ok && strings.ToLower(remark.(string)) != "official") {
 		receivers = []string{}
 	}
 
