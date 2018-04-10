@@ -3,6 +3,7 @@ package reportutils
 import (
 	"fmt"
 	"net/http"
+	"net/url"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -45,7 +46,7 @@ func RefreshPowerBI(secret *corev1.Secret) {
 	client.Authorizer = authorizer
 
 	req, err := http.NewRequest(
-		http.MethodGet,
+		http.MethodPost,
 		fmt.Sprintf("https://api.powerbi.com/v1.0/myorg/groups/%s/datasets/%s/refreshes", string(group), string(dataset)),
 		nil)
 	if err != nil {
@@ -84,11 +85,19 @@ func getAuth() (a autorest.Authorizer, err error) {
 	username := secret.Data["username"]
 	password := secret.Data["password"]
 
-	config, err := adal.NewOAuthConfig("https://login.windows.net/", "common")
-	if err != nil {
-		return a, fmt.Errorf("failed to create a new oauth config: %v", err)
+	endpoint, err := url.Parse("https://login.windows.net/common/oauth2/token")
+	config := adal.OAuthConfig{
+		TokenEndpoint: *endpoint,
 	}
-	spt, err := adal.NewServicePrincipalTokenFromUsernamePassword(*config, string(clientID), string(username), string(password), "https://analysis.windows.net/powerbi/api")
+	if err != nil {
+		return a, fmt.Errorf("failed to parse token endpoint: %v", err)
+	}
+	spt, err := adal.NewServicePrincipalTokenFromUsernamePassword(
+		config,
+		string(clientID),
+		string(username),
+		string(password),
+		"https://analysis.windows.net/powerbi/api")
 	if err != nil {
 		return a, fmt.Errorf("failed to create a new service principal token: %v", err)
 	}
