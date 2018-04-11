@@ -30,7 +30,7 @@ func RefreshPowerBI(run *models.Run, product string) {
 
 	req, err := http.NewRequest(
 		http.MethodPost,
-		fmt.Sprintf("http://%s/powerbi", common.DNSNamePowerBIService),
+		fmt.Sprintf("http://%s/report", common.DNSNamePowerBIService),
 		bytes.NewBuffer(body))
 	if err != nil {
 		common.LogInfo(fmt.Sprintf("Fail to create request to refresh PowerBI: %v", err))
