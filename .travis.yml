@@ -6,7 +6,7 @@ before_install:
 - sudo apt-get install -y apt-transport-https
 - sudo apt-get -qq update && sudo apt-get install -y azure-cli
 go:
-- '1.9'
+- '1.10.x'
 script:
 - go get -u github.com/golang/dep/cmd/dep
 - dep ensure

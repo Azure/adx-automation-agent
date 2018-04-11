@@ -104,7 +104,7 @@ func main() {
 			common.ExitOnError(err, "Failed to get the kubernetes secret")
 		}
 
-		reportutils.RefreshPowerBI(run)
+		reportutils.RefreshPowerBI(run, run.GetSecretName(droidMetadata))
 
 		owners := string(secret.Data["owners"])
 		templateURL, ok := secret.Data["email.path.template"]
