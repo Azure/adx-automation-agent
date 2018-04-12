@@ -10,7 +10,7 @@ const (
 	StorageVolumeNameTools     = "tools-storage"
 	DNSNameTaskStore           = "store-internal-svc"
 	DNSNameEmailService        = "email-internal-svc"
-	DNSNamePowerBIService      = "powerbi-internal-svc"
+	DNSNameReportService       = "report-internal-svc"
 	SecretNameAgents           = "agent-secrets"
 	SystemConfigmapName        = "a01-system-config"
 )
