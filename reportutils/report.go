@@ -12,6 +12,8 @@ import (
 	"github.com/Azure/adx-automation-agent/models"
 )
 
+var httpClient = &http.Client{}
+
 // Report method requests the email service to send emails
 func Report(run *models.Run, receivers []string, templateURL string) {
 	common.LogInfo("Sending report...")
