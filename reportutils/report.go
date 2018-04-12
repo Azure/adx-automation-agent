@@ -20,8 +20,7 @@ func Report(run *models.Run, receivers []string, templateURL string) {
 
 	// Emails should not be sent to all the team if the run was not set with a remark
 	// Only acceptable remark for sending emails to whole team is 'official'
-	remark, ok := run.Settings[common.KeyRemark]
-	if !ok || (ok && strings.ToLower(remark.(string)) != "official") {
+	if !run.IsOfficial() {
 		receivers = []string{}
 	}
 

@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os/exec"
 	"regexp"
+	"strings"
 
 	"github.com/Azure/adx-automation-agent/common"
 	"github.com/Azure/adx-automation-agent/httputils"
@@ -123,4 +124,10 @@ func QueryRun(runID int) (*Run, error) {
 	}
 
 	return &run, nil
+}
+
+// IsOfficial returns true if the run is an official run
+func (run *Run) IsOfficial() bool {
+	remark, ok := run.Settings[common.KeyRemark]
+	return ok && strings.ToLower(remark.(string)) == "official"
 }
