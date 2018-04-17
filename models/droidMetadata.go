@@ -17,9 +17,10 @@ type DroidMetadata struct {
 	SecretFiles  []DroidMetadataFileDef `yaml:"secretFiles"`
 }
 
+// DroidMetadataFileDef defines the data model of the secret files definition in metadata.yml
 type DroidMetadataFileDef struct {
-	Path  string `yaml:"path"`
-	Value string `yaml:"value"`
+	Path      string `yaml:"path"`
+	SecretKey string `yaml:"secretKey"`
 }
 
 // DroidMetadataEnvDef defines the data model of the environment variable definition in metadata.yml
