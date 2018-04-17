@@ -7,6 +7,7 @@ import (
 // Defins well-known names in the A01 system
 const (
 	StorageVolumeNameArtifacts = "artifacts-storage"
+	StorageVolumeNameSecrets   = "secrets-storage"
 	StorageVolumeNameTools     = "tools-storage"
 	DNSNameTaskStore           = "store-internal-svc"
 	DNSNameEmailService        = "email-internal-svc"

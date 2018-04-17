@@ -201,6 +201,27 @@ func getVolumes(run *models.Run) (volumes []corev1.Volume) {
 			},
 		})
 
+	if len(droidMetadata.SecretFiles) == 0 {
+		return
+	}
+
+	for _, file := range droidMetadata.SecretFiles {
+		volumes = append(volumes,
+			corev1.Volume{
+				Name: common.StorageVolumeNameSecrets,
+				VolumeSource: corev1.VolumeSource{
+					Secret: &corev1.SecretVolumeSource{
+						SecretName: run.GetSecretName(droidMetadata),
+						Items: []corev1.KeyToPath{
+							{
+								Key:  file.Value,
+								Path: file.Path,
+							},
+						},
+					},
+				},
+			})
+	}
 	return
 }
 
