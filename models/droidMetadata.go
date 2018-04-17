@@ -9,11 +9,18 @@ import (
 
 // DroidMetadata defines the data model used in metadata.yml
 type DroidMetadata struct {
-	Kind         string                `yaml:"kind"`
-	Version      string                `yaml:"version"`
-	Product      string                `yaml:"product"`
-	Storage      bool                  `yaml:"storage"`
-	Environments []DroidMetadataEnvDef `yaml:"environments"`
+	Kind         string                 `yaml:"kind"`
+	Version      string                 `yaml:"version"`
+	Product      string                 `yaml:"product"`
+	Storage      bool                   `yaml:"storage"`
+	Environments []DroidMetadataEnvDef  `yaml:"environments"`
+	SecretFiles  []DroidMetadataFileDef `yaml:"secretFiles"`
+}
+
+// DroidMetadataFileDef defines the data model of the secret files definition in metadata.yml
+type DroidMetadataFileDef struct {
+	Path      string `yaml:"path"`
+	SecretKey string `yaml:"secretKey"`
 }
 
 // DroidMetadataEnvDef defines the data model of the environment variable definition in metadata.yml
