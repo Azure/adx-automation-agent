@@ -3,6 +3,7 @@ package common
 // Defines the well know paths on the image
 const (
 	PathMountArtifacts   = "/mnt/storage"
+	PathMountSecrets     = "/mnt/secrets"
 	PathMountTools       = "/mnt/tools"
 	PathScriptPreparePod = "/app/prepare_pod"
 	PathScriptAfterTest  = "/app/after_test"

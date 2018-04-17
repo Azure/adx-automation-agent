@@ -240,12 +240,22 @@ func getContainerSpecs(run *models.Run, jobName string) (containers []corev1.Con
 	volumeMounts := []corev1.VolumeMount{
 		corev1.VolumeMount{
 			MountPath: common.PathMountTools,
-			Name:      common.StorageVolumeNameTools}}
+			Name:      common.StorageVolumeNameTools,
+		},
+	}
 
 	if droidMetadata.Storage {
 		volumeMounts = append(volumeMounts, corev1.VolumeMount{
 			MountPath: common.PathMountArtifacts,
-			Name:      common.StorageVolumeNameArtifacts})
+			Name:      common.StorageVolumeNameArtifacts,
+		})
+	}
+
+	if len(droidMetadata.SecretFiles) > 0 {
+		volumeMounts = append(volumeMounts, corev1.VolumeMount{
+			MountPath: common.PathMountSecrets,
+			Name:      common.StorageVolumeNameSecrets,
+		})
 	}
 
 	c.VolumeMounts = volumeMounts
