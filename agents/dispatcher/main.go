@@ -31,6 +31,11 @@ var (
 	sourceCommit  = "Unknown"
 )
 
+// main defines the logic of A01 dispatcher
+// Dispatcher cooridinates a test job. There is one instance of dispatcher for each test run. The dispatcher will parse
+// the test index and submit tasks to the task queue. Once the task queue is set up, the dispatcher begin monitoring the
+// status of the queue. When it determines all the tasks are completed, the dispatcher will trigger a reporting and then
+// exit.
 func main() {
 	common.LogInfo(fmt.Sprintf("A01 Droid Dispatcher.\nVersion: %s.\nCommit: %s.\n", version, sourceCommit))
 	common.LogInfo(fmt.Sprintf("Pod name: %s", os.Getenv(common.EnvPodName)))
