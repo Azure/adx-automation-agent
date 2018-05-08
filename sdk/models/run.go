@@ -82,7 +82,20 @@ func (run *Run) QueryTests() []TaskSetting {
 			}
 		}
 
-		return result
+		input = result
+	}
+
+	if query, ok := run.Settings[common.KeyTestExcludeQuery]; ok {
+		common.LogInfo(fmt.Sprintf("Exclude query string is '%s'", query))
+		result := make([]TaskSetting, 0, len(input))
+		for _, test := range input {
+			matched, regerr := regexp.MatchString(query.(string), test.Classifier["identifier"])
+			if !matched && regerr == nil {
+				result = append(result, test)
+			}
+		}
+
+		input = result
 	}
 
 	return input
