@@ -9,7 +9,7 @@ To make a test image compatible to A01 live automation system, besides install e
 -rwxr-xr-x 1 root root      474 Mar  2 21:32 after_test
 ```
 
-_The a01droid and a01dispatcher executables are no longer needed_
+Note: The a01droid and a01dispatcher executables are no longer needed
 
 ## Manifest /app/metadata.yml
 
@@ -101,7 +101,7 @@ The `/app/prepared_pod` executable is run once after the pod is started. It can 
 
 ## Executable /app/after_test
 
-The `/app/prepared_pod` executable is run once after each test. It can be used to clean up and save results. Two parameters are passed on to the script:
+The `/app/after_test` executable is run once after each test. It can be used to clean up and save results. Two parameters are passed on to the script:
 
 - The mount path to the file share
 - The body of the test definition (see /app/get_index)

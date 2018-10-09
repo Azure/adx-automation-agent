@@ -1,6 +1,7 @@
 package models
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
@@ -28,22 +29,27 @@ func (setting *TaskSetting) Execute() (result string, duration int, output []byt
 		shellExec = "/bin/sh"
 	}
 
-	execution := []string{shellExec, "-c", setting.Execution["command"]}
-	var cmd *exec.Cmd
-	if len(execution) < 2 {
-		cmd = exec.Command(execution[0])
-	} else {
-		cmd = exec.Command(execution[0], execution[1:]...)
-	}
+	timeout := time.Hour * 2
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	execution := []string{"-c", setting.Execution["command"]}
+	cmd := exec.CommandContext(ctx, shellExec, execution...)
 
 	begin := time.Now()
 	output, err := cmd.CombinedOutput()
-	duration = int(time.Now().Sub(begin) / time.Millisecond)
+	elapsed := time.Since(begin)
+
+	duration = int(elapsed.Seconds())
 
 	if err == nil {
 		result = "Passed"
 	} else {
-		result = "Failed"
+		if elapsed >= timeout {
+			result = "Timeout"
+		} else {
+			result = "Failed"
+		}
 	}
 
 	return
