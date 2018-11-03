@@ -6,7 +6,7 @@ before_install:
 - sudo apt-get install -y apt-transport-https
 - sudo apt-get -qq update && sudo apt-get install -y azure-cli
 go:
-- '1.10.x'
+- '1.x'
 script:
 - ./build $TRAVIS_TAG
 deploy:
