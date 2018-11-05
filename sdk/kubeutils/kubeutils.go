@@ -47,14 +47,14 @@ func TryCreateKubeClientset() *kubernetes.Clientset {
 	return nil
 }
 
-// TryGetSystemConfig retrives the value of given key in a01 system config.
+// TryGetSystemConfig retrieves the value of given key in a01 system config.
 func TryGetSystemConfig(key string) (value string, exists bool) {
 	clientset := TryCreateKubeClientset()
 	if clientset == nil {
 		return "", false
 	}
 
-	configmap, err := clientset.CoreV1().ConfigMaps(common.GetCurrentNamespace("default")).Get(common.SystemConfigmapName, metav1.GetOptions{})
+	configmap, err := clientset.CoreV1().ConfigMaps(common.GetCurrentNamespace("default")).Get(common.SystemConfigMapName, metav1.GetOptions{})
 	if err != nil {
 		return "", false
 	}

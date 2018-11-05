@@ -27,7 +27,7 @@ type TaskResult struct {
 	Status        string                 `json:"status,omitempty"`
 }
 
-// CommitNew save an uncommited Task to the database
+// CommitNew save an uncommitted Task to the database
 func (task *TaskResult) CommitNew() (*TaskResult, error) {
 	body, err := json.Marshal(task)
 	if err != nil {
@@ -65,7 +65,7 @@ func (task *TaskResult) CommitNew() (*TaskResult, error) {
 	return &result, nil
 }
 
-// CommitChanges save a commited task's updated properties to the database
+// CommitChanges save a committed task's updated properties to the database
 func (task *TaskResult) CommitChanges() (*TaskResult, error) {
 	body, err := json.Marshal(task)
 	if err != nil {

@@ -1,6 +1,6 @@
 package common
 
-// Defines the resevered task settings keys
+// Defines the reserved task settings keys
 const (
 	KeyImageName        = "a01.reserved.imagename"
 	KeyImagePullSecret  = "a01.reserved.imagepullsecret"

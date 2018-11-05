@@ -13,7 +13,7 @@ Note: The a01droid and a01dispatcher executables are no longer needed
 
 ## Manifest /app/metadata.yml
 
-The metadata.yml defines how to insert this image in a Kubernete Pod template.
+The metadata.yml defines how to insert this image in a Kubernetes Pod template.
 
 Following is the Azure CLI project's the metadata.yml:
 
@@ -39,11 +39,11 @@ environments:
 
 - The `kind` MUST be `DroidMetadata`
 - The `version` MUST be `v3`
-- The `product` MUST exist. It is the string represent your product. The value will be mapped to the name of the [kubernete secret](https://kubernetes.io/docs/concepts/configuration/secret/) in the cluster. It MUST be unique.
+- The `product` MUST exist. It is the string represent your product. The value will be mapped to the name of the [kubernetes secret](https://kubernetes.io/docs/concepts/configuration/secret/) in the cluster. It MUST be unique.
 - The `storage` is a boolean. If is true, an Azure File Share will be mounted at `/mnt/storage` in the container.
 - The `environment` is an array.
   - Each item contains `name`, `value`, and `type` properties.
-  - The `name` specifues the environment variable name
+  - The `name` specifies the environment variable name
   - The `type` specifies the source of the value.
     - The `secret` means the value comes from a Kubernetes secret. The `value` specify a key in the secret (secret is like an dictionary.)
     - The `argument-switch-live` means the environment variable is created if the run was create with `--live` option with CLI.
@@ -51,7 +51,7 @@ environments:
 
 ## Executable /app/get_index
 
-The executable must returns test manifest in a JSON format. Its implementation is irrelevent. It can be a bash script, python script (with correct [shebang](https://en.wikipedia.org/wiki/Shebang_(Unix))), or any other program.
+The executable must returns test manifest in a JSON format. Its implementation is irrelevant. It can be a bash script, python script (with correct [shebang](https://en.wikipedia.org/wiki/Shebang_(Unix))), or any other program.
 
 It MUST print a JSON array in following format to the `stderr`
 

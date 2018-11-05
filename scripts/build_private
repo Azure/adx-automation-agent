@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# This script builds and publishs a private build
+# This script builds and publishes a private build
 
 set -e
 
