@@ -55,7 +55,7 @@ func (setting *TaskSetting) Execute() (result string, duration int, output []byt
 	return
 }
 
-// CreateCompletedTask returns a uncommited Task instance represents a completed task
+// CreateCompletedTask returns an uncommitted Task instance which represents a completed task
 func (setting *TaskSetting) CreateCompletedTask(result string, duration int, podName string, runID string) *TaskResult {
 	nRunID, _ := strconv.Atoi(runID)
 
@@ -72,8 +72,8 @@ func (setting *TaskSetting) CreateCompletedTask(result string, duration int, pod
 	return &task
 }
 
-// CreateIncompletedTask returns a uncommited Task instance represents an incompleted task
-func (setting *TaskSetting) CreateIncompletedTask(podName string, runID string, errorMsg string) *TaskResult {
+// CreateUncompletedTask returns an uncommitted Task instance which represents an incomplete task.
+func (setting *TaskSetting) CreateUncompletedTask(podName string, runID string, errorMsg string) *TaskResult {
 	nRunID, _ := strconv.Atoi(runID)
 
 	task := TaskResult{

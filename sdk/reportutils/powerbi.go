@@ -11,7 +11,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// RefreshPowerBI requests the PowerBI service to refresh a dataset
+// RefreshPowerBI requests the PowerBI service to refresh a data set
 func RefreshPowerBI(run *models.Run, product string) {
 	if !run.IsOfficial() {
 		logrus.Info("Skip PowerBI refresh: run is not official")

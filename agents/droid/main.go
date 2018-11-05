@@ -57,7 +57,7 @@ func preparePod() {
 func afterTask(taskResult *models.TaskResult) error {
 	_, err := os.Stat(common.PathScriptAfterTest)
 	if err != nil && os.IsNotExist(err) {
-		// Missing after task execuable is not considerred an error.
+		// Missing after task executable is not considered an error.
 		return nil
 	}
 
@@ -91,10 +91,10 @@ func main() {
 	queue, ch, err := taskBroker.QueueDeclare(jobName)
 	common.ExitOnError(err, "Failed to connect to the task broker.")
 
-	if bLogPathTempalte, exists := kubeutils.TryGetSecretInBytes(
+	if bLogPathTemplate, exists := kubeutils.TryGetSecretInBytes(
 		productName,
 		common.ProductSecretKeyLogPathTemplate); exists {
-		logPathTemplate = string(bLogPathTempalte)
+		logPathTemplate = string(bLogPathTemplate)
 	}
 
 	preparePod()
@@ -116,7 +116,7 @@ func main() {
 			errorMsg := fmt.Sprintf("Failed to unmarshel a delivery's body in JSON: %s", err.Error())
 			logrus.Error(errorMsg)
 
-			taskResult = setting.CreateIncompletedTask(podName, runID, errorMsg)
+			taskResult = setting.CreateUncompletedTask(podName, runID, errorMsg)
 		} else {
 			logrus.Infof("Run task %s", setting.GetIdentifier())
 

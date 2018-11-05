@@ -39,7 +39,7 @@ func WaitTasks(taskBroker *schedule.TaskBroker, run *models.Run) {
 
 		queue, err := ch.QueueInspect(jobName)
 		if err != nil {
-			logrus.Info("The queue doesn't exist. All tasks have been exectued.")
+			logrus.Info("The queue doesn't exist. All tasks have been executed.")
 			break
 		}
 		logrus.Infof("Queue: messages %d.", queue.Messages)

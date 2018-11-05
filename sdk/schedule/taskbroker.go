@@ -23,7 +23,7 @@ type TaskBroker struct {
 }
 
 // GetChannel returns the channel to this task broker. If a channel hasn't been
-// establised, a new channel as well as a connection will be created.
+// established, a new channel as well as a connection will be created.
 func (broker *TaskBroker) GetChannel() (*amqp.Channel, error) {
 	if broker.channel == nil {
 		if broker.connection == nil {
@@ -43,7 +43,7 @@ func (broker *TaskBroker) GetChannel() (*amqp.Channel, error) {
 
 		// ensure fair fetch
 		err = ch.Qos(
-			1,     // perfetch count
+			1,     // prefetch count
 			0,     // prefetch size
 			false, // global
 		)
@@ -59,7 +59,7 @@ func (broker *TaskBroker) GetChannel() (*amqp.Channel, error) {
 }
 
 // QueueDeclare declare a queue associated with the given name. It returns the
-// queue as well as the channel associate with this connetion. If a channel has
+// queue as well as the channel associate with this connection. If a channel has
 // not been established, a new one will be created.
 func (broker *TaskBroker) QueueDeclare(name string) (queue amqp.Queue, ch *amqp.Channel, err error) {
 	ch, err = broker.GetChannel()
@@ -156,7 +156,7 @@ func CreateInClusterTaskBroker() *TaskBroker {
 		log.Fatalln("Fail to fetch taskbroker's user name from system config.")
 	}
 
-	secretname, exists := kubeutils.TryGetSystemConfig(common.ConfigKeySecretTaskBroker)
+	secretName, exists := kubeutils.TryGetSystemConfig(common.ConfigKeySecretTaskBroker)
 	if !exists {
 		log.Fatalln("Fail to fetch taskbroker's secret name from system config.")
 	}
@@ -166,9 +166,9 @@ func CreateInClusterTaskBroker() *TaskBroker {
 		log.Fatalln("Fail to fetch taskbroker's password key name from system config.")
 	}
 
-	passwordInBytes, exists := kubeutils.TryGetSecretInBytes(secretname, passwordKey)
+	passwordInBytes, exists := kubeutils.TryGetSecretInBytes(secretName, passwordKey)
 	if !exists {
-		log.Fatalf("Fail to fetch taskbroker's password from secret %s using key %s.", secretname, passwordKey)
+		log.Fatalf("Fail to fetch taskbroker's password from secret %s using key %s.", secretName, passwordKey)
 	}
 
 	password := string(passwordInBytes)

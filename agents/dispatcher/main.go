@@ -33,7 +33,7 @@ var (
 )
 
 // main defines the logic of A01 dispatcher
-// Dispatcher cooridinates a test job. There is one instance of dispatcher for each test run. The dispatcher will parse
+// Dispatcher coordinates a test job. There is one instance of dispatcher for each test run. The dispatcher will parse
 // the test index and submit tasks to the task queue. Once the task queue is set up, the dispatcher begin monitoring the
 // status of the queue. When it determines all the tasks are completed, the dispatcher will trigger a reporting and then
 // exit.
@@ -182,7 +182,7 @@ func getLabels(run *models.Run) map[string]string {
 
 func getVolumes(run *models.Run) (volumes []corev1.Volume) {
 	volumes = []corev1.Volume{
-		corev1.Volume{
+		{
 			Name: common.StorageVolumeNameTools,
 			VolumeSource: corev1.VolumeSource{
 				AzureFile: &corev1.AzureFileVolumeSource{
@@ -229,7 +229,7 @@ func getVolumes(run *models.Run) (volumes []corev1.Volume) {
 }
 
 func getImagePullSource(run *models.Run) []corev1.LocalObjectReference {
-	return []corev1.LocalObjectReference{corev1.LocalObjectReference{Name: run.Settings[common.KeyImagePullSecret].(string)}}
+	return []corev1.LocalObjectReference{{Name: run.Settings[common.KeyImagePullSecret].(string)}}
 }
 
 func getContainerSpecs(run *models.Run, jobName string) (containers []corev1.Container) {
@@ -241,7 +241,7 @@ func getContainerSpecs(run *models.Run, jobName string) (containers []corev1.Con
 	}
 
 	volumeMounts := []corev1.VolumeMount{
-		corev1.VolumeMount{
+		{
 			MountPath: common.PathMountTools,
 			Name:      common.StorageVolumeNameTools,
 		},
@@ -268,19 +268,31 @@ func getContainerSpecs(run *models.Run, jobName string) (containers []corev1.Con
 
 func getEnvironmentVariableDef(run *models.Run, jobName string) []corev1.EnvVar {
 	result := []corev1.EnvVar{
-		corev1.EnvVar{
-			Name:      common.EnvPodName,
-			ValueFrom: &corev1.EnvVarSource{FieldRef: &corev1.ObjectFieldSelector{FieldPath: "metadata.name"}}},
-		corev1.EnvVar{
-			Name:      common.EnvNodeName,
-			ValueFrom: &corev1.EnvVarSource{FieldRef: &corev1.ObjectFieldSelector{FieldPath: "spec.nodeName"}}},
-		corev1.EnvVar{Name: common.EnvJobName, Value: jobName},
-		corev1.EnvVar{
+		{
+			Name: common.EnvPodName,
+			ValueFrom: &corev1.EnvVarSource{
+				FieldRef: &corev1.ObjectFieldSelector{FieldPath: "metadata.name"},
+			},
+		},
+		{
+			Name: common.EnvNodeName,
+			ValueFrom: &corev1.EnvVarSource{FieldRef: &corev1.ObjectFieldSelector{
+				FieldPath: "spec.nodeName"},
+			},
+		},
+		{
+			Name:  common.EnvJobName,
+			Value: jobName,
+		},
+		{
 			Name: common.EnvKeyInternalCommunicationKey,
 			ValueFrom: &corev1.EnvVarSource{
 				SecretKeyRef: &corev1.SecretKeySelector{
 					LocalObjectReference: corev1.LocalObjectReference{Name: "store-secrets"},
-					Key:                  "comkey"}}},
+					Key:                  "comkey",
+				},
+			},
+		},
 	}
 
 	for _, def := range droidMetadata.Environments {

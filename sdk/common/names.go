@@ -4,7 +4,7 @@ import (
 	"io/ioutil"
 )
 
-// Defins well-known names in the A01 system
+// Defines well-known names in the A01 system
 const (
 	StorageVolumeNameArtifacts = "artifacts-storage"
 	StorageVolumeNameSecrets   = "secrets-storage"
@@ -13,7 +13,7 @@ const (
 	DNSNameEmailService        = "email-report-svc"
 	DNSNameReportService       = "report-internal-svc"
 	SecretNameAgents           = "agent-secrets"
-	SystemConfigmapName        = "a01-system-config"
+	SystemConfigMapName        = "a01-system-config"
 )
 
 const (

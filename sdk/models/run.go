@@ -24,7 +24,7 @@ type Run struct {
 
 // GetSecretName returns the secret mapping to this run.
 // It first tries to find the secret name in the run settings. If the run's settings do not contain the property,
-// falls back to the prodcut name in the metadata.
+// falls back to the product name in the metadata.
 func (run *Run) GetSecretName(metadata *DroidMetadata) string {
 	if v, ok := run.Settings[common.KeySecretName]; ok && len(v.(string)) >= 0 {
 		return v.(string)
@@ -77,8 +77,8 @@ func (run *Run) QueryTests() []TaskSetting {
 		logrus.Info(fmt.Sprintf("Query string is '%s'", query))
 		result := make([]TaskSetting, 0, len(input))
 		for _, test := range input {
-			matched, regerr := regexp.MatchString(query.(string), test.Classifier["identifier"])
-			if matched && regerr == nil {
+			matched, err := regexp.MatchString(query.(string), test.Classifier["identifier"])
+			if matched && err == nil {
 				result = append(result, test)
 			}
 		}
@@ -90,8 +90,8 @@ func (run *Run) QueryTests() []TaskSetting {
 		logrus.Info(fmt.Sprintf("Exclude query string is '%s'", query))
 		result := make([]TaskSetting, 0, len(input))
 		for _, test := range input {
-			matched, regerr := regexp.MatchString(query.(string), test.Classifier["identifier"])
-			if !matched && regerr == nil {
+			matched, err := regexp.MatchString(query.(string), test.Classifier["identifier"])
+			if !matched && err == nil {
 				result = append(result, test)
 			}
 		}
