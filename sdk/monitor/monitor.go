@@ -24,11 +24,13 @@ var (
 )
 
 // WaitTasks blocks the caller till the job finishes.
-func WaitTasks(taskBroker *schedule.TaskBroker, run *models.Run) {
+func WaitTasks(taskBroker *schedule.TaskBroker, run *models.Run) error {
 	logrus.Info("Begin monitoring task execution ...")
 
 	ch, err := taskBroker.GetChannel()
-	common.PanicOnError(err, "Fail to establish channel to the task broker during monitoring.")
+	if err != nil {
+		return err
+	}
 
 	jobName := run.Details[common.KeyJobName]
 	podListOpt := metav1.ListOptions{LabelSelector: fmt.Sprintf("job-name=%s", jobName)}
@@ -72,4 +74,6 @@ func WaitTasks(taskBroker *schedule.TaskBroker, run *models.Run) {
 		// zero task in the queue and all pod stop.
 		break
 	}
+
+	return nil
 }
