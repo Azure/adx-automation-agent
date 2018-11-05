@@ -89,7 +89,9 @@ func main() {
 	ckEnvironment()
 
 	queue, ch, err := taskBroker.QueueDeclare(jobName)
-	common.ExitOnError(err, "Failed to connect to the task broker.")
+	if err != nil {
+		logrus.Fatal("Failed to connect to the task broker.")
+	}
 
 	if bLogPathTemplate, exists := kubeutils.TryGetSecretInBytes(
 		productName,
@@ -101,7 +103,9 @@ func main() {
 
 	for {
 		delivery, ok, err := ch.Get(queue.Name, false /* autoAck*/)
-		common.ExitOnError(err, "Failed to get a delivery.")
+		if err != nil {
+			logrus.Fatal("Failed to get a delivery: ", err)
+		}
 
 		if !ok {
 			logrus.Info("No more task in the queue. Exiting successfully.")

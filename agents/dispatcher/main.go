@@ -51,12 +51,16 @@ func main() {
 
 	// query the run and then update the product name in the details
 	run, err := models.QueryRun(*pRunID)
-	common.ExitOnError(err, "fail to query the run")
+	if err != nil {
+		logrus.Fatal("fail to query the run")
+	}
 
 	if run.Status == common.RunStatusInitialized || len(run.Status) == 0 {
 		run.Details[common.KeyProduct] = droidMetadata.Product
 		run, err = run.SubmitChange()
-		common.ExitOnError(err, "fail to update the run")
+		if err != nil {
+			logrus.Fatal("fail to update the run: ", err)
+		}
 
 		run.PrintInfo()
 
@@ -66,14 +70,18 @@ func main() {
 
 		// publish tasks to the task broker which will establish a worker queue
 		err = taskBroker.PublishTasks(jobName, run.QueryTests())
-		common.ExitOnError(err, "Fail to publish tasks to the task broker.")
+		if err != nil {
+			logrus.Fatal("Fail to publish tasks to the task broker:", err)
+		}
 		defer taskBroker.Close()
 
 		// update the run status and add job name
 		run.Status = common.RunStatusPublished
 		run.Details[common.KeyJobName] = jobName
 		run, err = run.SubmitChange()
-		common.ExitOnError(err, "fail to update the run")
+		if err != nil {
+			logrus.Fatal("fail to update the run: ", err)
+		}
 	}
 
 	if run.Status == common.RunStatusPublished {
@@ -95,7 +103,9 @@ func main() {
 
 		run.Status = common.RunStatusRunning
 		run, err = run.SubmitChange()
-		common.ExitOnError(err, "fail to update the run")
+		if err != nil {
+			logrus.Fatal("fail to update the run: ", err)
+		}
 	}
 
 	if run.Status == common.RunStatusRunning {
@@ -107,7 +117,7 @@ func main() {
 			Secrets(namespace).
 			Get(run.GetSecretName(droidMetadata), metav1.GetOptions{})
 		if err != nil {
-			common.ExitOnError(err, "Failed to get the kubernetes secret")
+			logrus.Fatal("Failed to get the kubernetes secret: ", err)
 		}
 
 		reportutils.RefreshPowerBI(run, run.GetSecretName(droidMetadata))
@@ -123,7 +133,9 @@ func main() {
 
 		run.Status = common.RunStatusCompleted
 		run, err = run.SubmitChange()
-		common.ExitOnError(err, "fail to update the run")
+		if err != nil {
+			logrus.Fatal("fail to update the run: ", err)
+		}
 	}
 
 	if run.Status == common.RunStatusCompleted {
@@ -134,7 +146,7 @@ func main() {
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Kubernete JOB
+// Kubernetes JOB
 
 func createTaskJob(run *models.Run, jobName string) (job *batchv1.Job, err error) {
 	client, err := kubeutils.CreateKubeClientset()
