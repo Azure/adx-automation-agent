@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/sirupsen/logrus"
 	"log"
 	"os"
 	"os/exec"
@@ -77,13 +78,13 @@ func afterTask(taskResult *models.TaskResult) error {
 		return fmt.Errorf("execution failed: %s", err.Error())
 	}
 
-	common.LogInfo(fmt.Sprintf("After task executed. %s.", string(output)))
+	logrus.Infof("After task executed. %s.", string(output))
 	return nil
 }
 
 func main() {
-	common.LogInfo(fmt.Sprintf("A01 Droid Engine.\nVersion: %s.\nCommit: %s.\n", version, sourceCommit))
-	common.LogInfo(fmt.Sprintf("Run ID: %s", runID))
+	logrus.Infof("A01 Droid Engine.\nVersion: %s.\nCommit: %s.\n", version, sourceCommit)
+	logrus.Infof("Run ID: %s", runID)
 
 	ckEnvironment()
 
@@ -103,7 +104,7 @@ func main() {
 		common.ExitOnError(err, "Failed to get a delivery.")
 
 		if !ok {
-			common.LogInfo("No more task in the queue. Exiting successfully.")
+			logrus.Info("No more task in the queue. Exiting successfully.")
 			break
 		}
 
@@ -113,11 +114,11 @@ func main() {
 		err = json.Unmarshal(delivery.Body, &setting)
 		if err != nil {
 			errorMsg := fmt.Sprintf("Failed to unmarshel a delivery's body in JSON: %s", err.Error())
-			common.LogError(errorMsg)
+			logrus.Error(errorMsg)
 
 			taskResult = setting.CreateIncompletedTask(podName, runID, errorMsg)
 		} else {
-			common.LogInfo(fmt.Sprintf("Run task %s", setting.GetIdentifier()))
+			logrus.Infof("Run task %s", setting.GetIdentifier())
 
 			result, duration, executeOutput := setting.Execute()
 			taskResult = setting.CreateCompletedTask(result, duration, podName, runID)
@@ -126,16 +127,16 @@ func main() {
 
 		taskResult, err = taskResult.CommitNew()
 		if err != nil {
-			common.LogError(fmt.Sprintf("Failed to commit a new task: %s.", err.Error()))
+			logrus.Errorf("Failed to commit a new task: %s.", err.Error())
 		} else {
 			taskLogPath, err := taskResult.SaveTaskLog(output)
 			if err != nil {
-				common.LogError(err.Error())
+				logrus.Error(err)
 			}
 
 			err = afterTask(taskResult)
 			if err != nil {
-				common.LogError(fmt.Sprintf("Failed in after task: %s.", err.Error()))
+				logrus.Errorf("Failed in after task: %s.", err.Error())
 			}
 
 			if len(logPathTemplate) > 0 {
@@ -153,16 +154,16 @@ func main() {
 
 				_, err := taskResult.CommitChanges()
 				if err != nil {
-					common.LogError(err.Error())
+					logrus.Error(err)
 				}
 			}
 		}
 
 		err = delivery.Ack(false)
 		if err != nil {
-			common.LogError(fmt.Sprintf("Failed to ack delivery: %s", err.Error()))
+			logrus.Errorf("Failed to ack delivery: %s", err.Error())
 		} else {
-			common.LogInfo("ACK")
+			logrus.Info("ACK")
 		}
 	}
 }

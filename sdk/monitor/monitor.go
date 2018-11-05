@@ -2,6 +2,7 @@ package monitor
 
 import (
 	"fmt"
+	"github.com/sirupsen/logrus"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -24,7 +25,7 @@ var (
 
 // WaitTasks blocks the caller till the job finishes.
 func WaitTasks(taskBroker *schedule.TaskBroker, run *models.Run) {
-	common.LogInfo("Begin monitoring task execution ...")
+	logrus.Info("Begin monitoring task execution ...")
 
 	ch, err := taskBroker.GetChannel()
 	common.PanicOnError(err, "Fail to establish channel to the task broker during monitoring.")
@@ -38,10 +39,10 @@ func WaitTasks(taskBroker *schedule.TaskBroker, run *models.Run) {
 
 		queue, err := ch.QueueInspect(jobName)
 		if err != nil {
-			common.LogInfo("The queue doesn't exist. All tasks have been exectued.")
+			logrus.Info("The queue doesn't exist. All tasks have been exectued.")
 			break
 		}
-		common.LogInfo(fmt.Sprintf("Queue: messages %d.", queue.Messages))
+		logrus.Infof("Queue: messages %d.", queue.Messages)
 
 		if queue.Messages != 0 {
 			// there are tasks to be run
@@ -52,7 +53,7 @@ func WaitTasks(taskBroker *schedule.TaskBroker, run *models.Run) {
 		// pods in this job have finished
 		podList, err := api.Pods(namespace).List(podListOpt)
 		if err != nil {
-			common.LogWarning(fmt.Errorf("Fail to list pod of %s: %s", jobName, err).Error())
+			logrus.Warnf("Fail to list pod of %s: %s", jobName, err)
 			continue
 		}
 
@@ -64,7 +65,7 @@ func WaitTasks(taskBroker *schedule.TaskBroker, run *models.Run) {
 		}
 
 		if runningPods != 0 {
-			common.LogInfo(fmt.Sprintf("%d pod are still running.", runningPods))
+			logrus.Infof("%d pod are still running.", runningPods)
 			continue
 		}
 

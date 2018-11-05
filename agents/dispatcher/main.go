@@ -5,6 +5,7 @@ import (
 	"encoding/base32"
 	"flag"
 	"fmt"
+	"github.com/sirupsen/logrus"
 	"log"
 	"os"
 	"strconv"
@@ -37,8 +38,8 @@ var (
 // status of the queue. When it determines all the tasks are completed, the dispatcher will trigger a reporting and then
 // exit.
 func main() {
-	common.LogInfo(fmt.Sprintf("A01 Droid Dispatcher.\nVersion: %s.\nCommit: %s.\n", version, sourceCommit))
-	common.LogInfo(fmt.Sprintf("Pod name: %s", os.Getenv(common.EnvPodName)))
+	logrus.Infof("A01 Droid Dispatcher.\nVersion: %s.\nCommit: %s.\n", version, sourceCommit)
+	logrus.Infof("Pod name: %s", os.Getenv(common.EnvPodName))
 
 	var pRunID *int
 	pRunID = flag.Int("run", -1, "The run ID")
@@ -116,7 +117,7 @@ func main() {
 		if ok {
 			reportutils.Report(run, strings.Split(owners, ","), string(templateURL))
 		} else {
-			common.LogWarning("Failed to get the `email.path.template` value from the kubernetes secret. A generic template will be used instead")
+			logrus.Warn("Failed to get the `email.path.template` value from the kubernetes secret. A generic template will be used instead")
 			reportutils.Report(run, strings.Split(owners, ","), "")
 		}
 
@@ -127,7 +128,7 @@ func main() {
 
 	if run.Status == common.RunStatusCompleted {
 		run.PrintInfo()
-		common.LogInfo("The run was already completed.")
+		logrus.Info("The run was already completed.")
 		os.Exit(0)
 	}
 }

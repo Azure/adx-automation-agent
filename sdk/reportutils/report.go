@@ -10,13 +10,14 @@ import (
 
 	"github.com/Azure/adx-automation-agent/sdk/common"
 	"github.com/Azure/adx-automation-agent/sdk/models"
+	"github.com/sirupsen/logrus"
 )
 
 var httpClient = &http.Client{}
 
 // Report method requests the email service to send emails
 func Report(run *models.Run, receivers []string, templateURL string) {
-	common.LogInfo("Sending report...")
+	logrus.Info("Sending report...")
 
 	// Emails should not be sent to all the team if the run was not set with a remark
 	// Only acceptable remark for sending emails to whole team is 'official'
@@ -36,31 +37,31 @@ func Report(run *models.Run, receivers []string, templateURL string) {
 
 		body, err := json.Marshal(content)
 		if err != nil {
-			common.LogInfo("Fail to marshal JSON during request sending email.")
+			logrus.Info("Fail to marshal JSON during request sending email.")
 			return
 		}
 
-		common.LogInfo(string(body))
+		logrus.Info(string(body))
 		req, err := http.NewRequest(
 			http.MethodPost,
 			fmt.Sprintf("http://%s/report", common.DNSNameEmailService),
 			bytes.NewBuffer(body))
 		if err != nil {
-			common.LogInfo("Fail to create request to requesting email.")
+			logrus.Info("Fail to create request to requesting email.")
 			return
 		}
 		req.Header.Set("Content-Type", "application/json")
 
 		resp, err := httpClient.Do(req)
 		if err != nil {
-			common.LogInfo("Fail to send request to email service.")
+			logrus.Info("Fail to send request to email service.")
 			return
 		}
 
 		if resp.StatusCode != http.StatusOK {
-			common.LogInfo("The request may have failed.")
+			logrus.Info("The request may have failed.")
 		}
 	} else {
-		common.LogInfo("Skip sending report")
+		logrus.Info("Skip sending report")
 	}
 }
