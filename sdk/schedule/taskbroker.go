@@ -3,6 +3,7 @@ package schedule
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/sirupsen/logrus"
 	"log"
 
 	"github.com/Azure/adx-automation-agent/sdk/kubeutils"
@@ -83,7 +84,7 @@ func (broker *TaskBroker) QueueDeclare(name string) (queue amqp.Queue, ch *amqp.
 // PublishTasks publishes the tasks to the queue specified by the given name. The queue will be
 // declared if it doesn't already exist.
 func (broker *TaskBroker) PublishTasks(queueName string, settings []models.TaskSetting) (err error) {
-	common.LogInfo(fmt.Sprintf("To schedule %d tests.", len(settings)))
+	logrus.Info(fmt.Sprintf("To schedule %d tests.", len(settings)))
 
 	_, ch, err := broker.QueueDeclare(queueName)
 	if err != nil {
@@ -91,11 +92,11 @@ func (broker *TaskBroker) PublishTasks(queueName string, settings []models.TaskS
 		return fmt.Errorf("fail to decalre queue: %s", err.Error())
 	}
 
-	common.LogInfo(fmt.Sprintf("Declared queue %s. Begin publishing tasks ...", queueName))
+	logrus.Info(fmt.Sprintf("Declared queue %s. Begin publishing tasks ...", queueName))
 	for _, setting := range settings {
 		body, err := json.Marshal(setting)
 		if err != nil {
-			common.LogWarning(fmt.Sprintf("Fail to marshal task %s setting in JSON. Error %s. The task is skipped.", setting, err.Error()))
+			logrus.Warnf("Fail to marshal task %s setting in JSON. Error %s. The task is skipped.", setting, err.Error())
 			continue
 		}
 
@@ -111,11 +112,11 @@ func (broker *TaskBroker) PublishTasks(queueName string, settings []models.TaskS
 			})
 
 		if err != nil {
-			common.LogWarning(fmt.Sprintf("Fail to publish task %s. Error %s. The task is skipped.", setting, err.Error()))
+			logrus.Warnf("Fail to publish task %s. Error %s. The task is skipped.", setting, err.Error())
 		}
 	}
 
-	common.LogInfo("Finish publish tasks")
+	logrus.Info("Finish publish tasks")
 
 	return nil
 }

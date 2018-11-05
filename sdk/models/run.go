@@ -3,6 +3,7 @@ package models
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/sirupsen/logrus"
 	"net/http"
 	"os/exec"
 	"regexp"
@@ -60,7 +61,7 @@ func (run *Run) SubmitChange() (*Run, error) {
 
 // QueryTests returns the list of test tasks based on the query string
 func (run *Run) QueryTests() []TaskSetting {
-	common.LogInfo(fmt.Sprintf("Expecting script %s.", common.PathScriptGetIndex))
+	logrus.Info(fmt.Sprintf("Expecting script %s.", common.PathScriptGetIndex))
 	content, err := exec.Command(common.PathScriptGetIndex).Output()
 	if err != nil {
 		panic(err.Error())
@@ -73,7 +74,7 @@ func (run *Run) QueryTests() []TaskSetting {
 	}
 
 	if query, ok := run.Settings[common.KeyTestQuery]; ok {
-		common.LogInfo(fmt.Sprintf("Query string is '%s'", query))
+		logrus.Info(fmt.Sprintf("Query string is '%s'", query))
 		result := make([]TaskSetting, 0, len(input))
 		for _, test := range input {
 			matched, regerr := regexp.MatchString(query.(string), test.Classifier["identifier"])
@@ -86,7 +87,7 @@ func (run *Run) QueryTests() []TaskSetting {
 	}
 
 	if query, ok := run.Settings[common.KeyTestExcludeQuery]; ok {
-		common.LogInfo(fmt.Sprintf("Exclude query string is '%s'", query))
+		logrus.Info(fmt.Sprintf("Exclude query string is '%s'", query))
 		result := make([]TaskSetting, 0, len(input))
 		for _, test := range input {
 			matched, regerr := regexp.MatchString(query.(string), test.Classifier["identifier"])
@@ -103,17 +104,17 @@ func (run *Run) QueryTests() []TaskSetting {
 
 // PrintInfo prints the run's detailed information to stdout
 func (run *Run) PrintInfo() {
-	common.LogInfo(fmt.Sprintf("Find run %d: %s.", run.ID, run.Name))
+	logrus.Info(fmt.Sprintf("Find run %d: %s.", run.ID, run.Name))
 	if run.Details != nil {
-		common.LogInfo("  Details")
+		logrus.Info("  Details")
 		for key, value := range run.Details {
-			common.LogInfo(fmt.Sprintf("    %s = %s", key, value))
+			logrus.Info(fmt.Sprintf("    %s = %s", key, value))
 		}
 	}
 	if run.Settings != nil {
-		common.LogInfo("  Settings")
+		logrus.Info("  Settings")
 		for key, value := range run.Settings {
-			common.LogInfo(fmt.Sprintf("    %s = %s", key, value))
+			logrus.Info(fmt.Sprintf("    %s = %s", key, value))
 		}
 	}
 }
