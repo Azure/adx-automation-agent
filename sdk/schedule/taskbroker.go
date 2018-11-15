@@ -3,13 +3,12 @@ package schedule
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/sirupsen/logrus"
 	"log"
 
-	"github.com/Azure/adx-automation-agent/sdk/kubeutils"
-
 	"github.com/Azure/adx-automation-agent/sdk/common"
+	"github.com/Azure/adx-automation-agent/sdk/kubeutils"
 	"github.com/Azure/adx-automation-agent/sdk/models"
+	"github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
 )
 

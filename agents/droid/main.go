@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/sirupsen/logrus"
 	"log"
 	"os"
 	"os/exec"
@@ -11,11 +10,11 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/Azure/adx-automation-agent/sdk/kubeutils"
-
 	"github.com/Azure/adx-automation-agent/sdk/common"
+	"github.com/Azure/adx-automation-agent/sdk/kubeutils"
 	"github.com/Azure/adx-automation-agent/sdk/models"
 	"github.com/Azure/adx-automation-agent/sdk/schedule"
+	"github.com/sirupsen/logrus"
 )
 
 var (

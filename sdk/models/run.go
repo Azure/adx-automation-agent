@@ -1,9 +1,9 @@
 package models
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/sirupsen/logrus"
 	"net/http"
 	"os/exec"
 	"regexp"
@@ -11,6 +11,7 @@ import (
 
 	"github.com/Azure/adx-automation-agent/sdk/common"
 	"github.com/Azure/adx-automation-agent/sdk/httputils"
+	"github.com/sirupsen/logrus"
 )
 
 // Run is the data structure of A01 run
@@ -61,7 +62,7 @@ func (run *Run) SubmitChange() (*Run, error) {
 
 // QueryTests returns the list of test tasks based on the query string
 func (run *Run) QueryTests() []TaskSetting {
-	logrus.Info(fmt.Sprintf("Expecting script %s.", common.PathScriptGetIndex))
+	logrus.Infof("Expecting script %s.", common.PathScriptGetIndex)
 	content, err := exec.Command(common.PathScriptGetIndex).Output()
 	if err != nil {
 		panic(err.Error())
@@ -102,21 +103,27 @@ func (run *Run) QueryTests() []TaskSetting {
 	return input
 }
 
-// PrintInfo prints the run's detailed information to stdout
-func (run *Run) PrintInfo() {
-	logrus.Info(fmt.Sprintf("Find run %d: %s.", run.ID, run.Name))
+// String creates a formatted summary about a Run.
+func (run Run) String() string {
+	builder := &bytes.Buffer{}
+
+	fmt.Fprintf(builder, "Find run %d: %s.", run.ID, run.Name)
+
 	if run.Details != nil {
-		logrus.Info("  Details")
+		fmt.Fprintln(builder, "  Details")
 		for key, value := range run.Details {
-			logrus.Info(fmt.Sprintf("    %s = %s", key, value))
+			fmt.Fprintf(builder, "    %s = %s\n", key, value)
 		}
 	}
+
 	if run.Settings != nil {
-		logrus.Info("  Settings")
+		fmt.Fprintln(builder, " Settings")
 		for key, value := range run.Settings {
-			logrus.Info(fmt.Sprintf("    %s = %s", key, value))
+			fmt.Fprintf(builder, "    %s = %s", key, value)
 		}
 	}
+
+	return builder.String()
 }
 
 // QueryRun returns the run of the runID
@@ -143,5 +150,5 @@ func QueryRun(runID int) (*Run, error) {
 // IsOfficial returns true if the run is an official run
 func (run *Run) IsOfficial() bool {
 	remark, ok := run.Settings[common.KeyRemark]
-	return ok && strings.ToLower(remark.(string)) == "official"
+	return ok && strings.EqualFold(remark.(string), "official")
 }

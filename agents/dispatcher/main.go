@@ -5,15 +5,10 @@ import (
 	"encoding/base32"
 	"flag"
 	"fmt"
-	"github.com/sirupsen/logrus"
 	"log"
 	"os"
 	"strconv"
 	"strings"
-
-	batchv1 "k8s.io/api/batch/v1"
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/Azure/adx-automation-agent/sdk/common"
 	"github.com/Azure/adx-automation-agent/sdk/kubeutils"
@@ -21,6 +16,10 @@ import (
 	"github.com/Azure/adx-automation-agent/sdk/monitor"
 	"github.com/Azure/adx-automation-agent/sdk/reportutils"
 	"github.com/Azure/adx-automation-agent/sdk/schedule"
+	"github.com/sirupsen/logrus"
+	batchv1 "k8s.io/api/batch/v1"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 var (
@@ -62,7 +61,7 @@ func main() {
 			logrus.Fatal("fail to update the run: ", err)
 		}
 
-		run.PrintInfo()
+		logrus.Info(run)
 
 		// generate a job name. the name will be used through out the remaining
 		// session to identify the group of operations and resources
@@ -139,8 +138,8 @@ func main() {
 	}
 
 	if run.Status == common.RunStatusCompleted {
-		run.PrintInfo()
-		logrus.Info("The run was already completed.")
+		logrus.Info(run)
+		logrus.Infof("The run %d was already completed.", run.ID)
 		os.Exit(0)
 	}
 }
