@@ -5,7 +5,6 @@ import (
 	"encoding/base32"
 	"flag"
 	"fmt"
-	"log"
 	"os"
 	"strconv"
 	"strings"
@@ -45,7 +44,7 @@ func main() {
 	flag.Parse()
 
 	if *pRunID == -1 {
-		log.Fatal("Missing runID")
+		logrus.Fatal("Missing runID")
 	}
 
 	// query the run and then update the product name in the details
@@ -89,7 +88,7 @@ func main() {
 		// creates a kubernete job to manage test droid
 		jobDef, err := createTaskJob(run, jobName)
 		if err != nil {
-			log.Fatal(err.Error())
+			logrus.Fatal(err.Error())
 		}
 
 		// ignore this error for now. This API's latest version seems to sending
@@ -97,7 +96,7 @@ func main() {
 		clientset.BatchV1().Jobs(namespace).Create(jobDef)
 		_, err = clientset.BatchV1().Jobs(namespace).Get(jobDef.Name, metav1.GetOptions{})
 		if err != nil {
-			log.Fatal(err.Error())
+			logrus.Fatal(err.Error())
 		}
 
 		run.Status = common.RunStatusRunning
