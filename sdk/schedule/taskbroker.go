@@ -3,8 +3,6 @@ package schedule
 import (
 	"encoding/json"
 	"fmt"
-	"log"
-
 	"github.com/Azure/adx-automation-agent/sdk/common"
 	"github.com/Azure/adx-automation-agent/sdk/kubeutils"
 	"github.com/Azure/adx-automation-agent/sdk/models"
@@ -147,27 +145,27 @@ func CreateLocalTaskBroker() *TaskBroker {
 func CreateInClusterTaskBroker() *TaskBroker {
 	endpoint, exists := kubeutils.TryGetSystemConfig(common.ConfigKeyEndpointTaskBroker)
 	if !exists {
-		log.Fatalln("Fail to fetch taskbroker's endpoint from system config.")
+		logrus.Fatal("Fail to fetch taskbroker's endpoint from system config.")
 	}
 
 	username, exists := kubeutils.TryGetSystemConfig(common.ConfigKeyUsernameTaskBroker)
 	if !exists {
-		log.Fatalln("Fail to fetch taskbroker's user name from system config.")
+		logrus.Fatal("Fail to fetch taskbroker's user name from system config.")
 	}
 
 	secretName, exists := kubeutils.TryGetSystemConfig(common.ConfigKeySecretTaskBroker)
 	if !exists {
-		log.Fatalln("Fail to fetch taskbroker's secret name from system config.")
+		logrus.Fatal("Fail to fetch taskbroker's secret name from system config.")
 	}
 
 	passwordKey, exists := kubeutils.TryGetSystemConfig(common.ConfigKeyPasswordKeyTaskBroker)
 	if !exists {
-		log.Fatalln("Fail to fetch taskbroker's password key name from system config.")
+		logrus.Fatal("Fail to fetch taskbroker's password key name from system config.")
 	}
 
 	passwordInBytes, exists := kubeutils.TryGetSecretInBytes(secretName, passwordKey)
 	if !exists {
-		log.Fatalf("Fail to fetch taskbroker's password from secret %s using key %s.", secretName, passwordKey)
+		logrus.Fatalf("Fail to fetch taskbroker's password from secret %s using key %s.", secretName, passwordKey)
 	}
 
 	password := string(passwordInBytes)

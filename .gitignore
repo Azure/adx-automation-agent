@@ -3,6 +3,8 @@
 *.dll
 *.so
 *.dylib
+a01dispatcher
+a01droid
 
 # Test binary, build with `go test -c`
 *.test

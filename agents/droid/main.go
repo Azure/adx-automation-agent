@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"os"
 	"os/exec"
 	"path"
@@ -34,7 +33,7 @@ func ckEnvironment() {
 	for _, r := range required {
 		_, exists := os.LookupEnv(r)
 		if !exists {
-			log.Fatalf("Missing environment variable %s.\n", r)
+			logrus.Fatalf("Missing environment variable %s.\n", r)
 		}
 	}
 }
@@ -42,15 +41,15 @@ func ckEnvironment() {
 func preparePod() {
 	_, statErr := os.Stat(common.PathScriptPreparePod)
 	if statErr != nil && os.IsNotExist(statErr) {
-		log.Printf("Executable %s doesn't exist. Skip preparing the pod.\n", common.PathScriptPreparePod)
+		logrus.Infof("Executable %s doesn't exist. Skip preparing the pod.\n", common.PathScriptPreparePod)
 		return
 	}
 
 	output, err := exec.Command(common.PathScriptPreparePod).CombinedOutput()
 	if err != nil {
-		log.Fatalf("Fail to prepare the pod: %s.\n%s\n", err, string(output))
+		logrus.Fatalf("Fail to prepare the pod: %s.\n%s\n", err, string(output))
 	}
-	log.Printf("Preparing Pod: \n%s\n", string(output))
+	logrus.Infof("Preparing Pod: \n%s\n", string(output))
 }
 
 func afterTask(taskResult *models.TaskResult) error {
@@ -60,7 +59,7 @@ func afterTask(taskResult *models.TaskResult) error {
 		return nil
 	}
 
-	log.Printf("Executing after task %s.", common.PathScriptAfterTest)
+	logrus.Infof("Executing after task %s.", common.PathScriptAfterTest)
 
 	taskInBytes, err := json.Marshal(taskResult)
 	if err != nil {

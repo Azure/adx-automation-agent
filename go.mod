@@ -18,11 +18,11 @@ require (
 	github.com/streadway/amqp v0.0.0-20180806233856-70e15c650864
 	golang.org/x/crypto v0.0.0-20180910181607-0e37d006457b // indirect
 	golang.org/x/net v0.0.0-20180906233101-161cd47e91fd // indirect
-	golang.org/x/oauth2 v0.0.0-20181003184128-c57b0facaced // indirect
+	golang.org/x/oauth2 v0.0.0-20181106182150-f42d05182288 // indirect
 	golang.org/x/sync v0.0.0-20180314180146-1d60e4601c6f // indirect
 	golang.org/x/sys v0.0.0-20180909124046-d0be0721c37e // indirect
 	golang.org/x/time v0.0.0-20180412165947-fbb02b2291d2 // indirect
-	google.golang.org/appengine v1.2.0 // indirect
+	google.golang.org/appengine v1.3.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/yaml.v2 v2.2.1
 	k8s.io/api v0.0.0-20180911000052-49f236fe119e

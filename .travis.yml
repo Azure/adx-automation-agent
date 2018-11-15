@@ -1,14 +1,30 @@
 language: go
+
 before_install:
-- echo "deb [arch=amd64] https://packages.microsoft.com/repos/azure-cli/ `lsb_release
-  -cs` main" | sudo tee /etc/apt/sources.list.d/azure-cli.list
-- curl -L https://packages.microsoft.com/keys/microsoft.asc | sudo apt-key add -
-- sudo apt-get install -y apt-transport-https
-- sudo apt-get -qq update && sudo apt-get install -y azure-cli
+  - echo "deb [arch=amd64] https://packages.microsoft.com/repos/azure-cli/ `lsb_release
+    -cs` main" | sudo tee /etc/apt/sources.list.d/azure-cli.list
+  - curl -L https://packages.microsoft.com/keys/microsoft.asc | sudo apt-key add -
+  - sudo apt-get install -y apt-transport-https
+  - sudo apt-get -qq update && sudo apt-get install -y azure-cli
+
+env:
+  - GO111MODULE=on
+
 go:
-- '1.x'
+  - 1.11.x
+  - master
+
+matrix:
+  fast_finish: true
+  allow_failures:
+  - go: master
+
+install:
+  - go get -u golang.org/x/lint/golint
+
 script:
-- ./build $TRAVIS_TAG
+  - make all
+
 deploy:
   provider: script
   script: ./scripts/publish
