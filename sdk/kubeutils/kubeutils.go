@@ -1,6 +1,7 @@
 package kubeutils
 
 import (
+	"errors"
 	"fmt"
 	"os/user"
 	"path/filepath"
@@ -21,19 +22,19 @@ func CreateKubeClientset() (clientset *kubernetes.Clientset, err error) {
 	if err != nil {
 		currentUser, err := user.Current()
 		if err != nil {
-			return nil, fmt.Errorf("Fail to get the current user")
+			return nil, errors.New("failed to get the current user")
 		}
 
 		kubeconfigPath := filepath.Join(currentUser.HomeDir, ".kube", "config")
 		config, err = clientcmd.BuildConfigFromFlags("", kubeconfigPath)
 		if err != nil {
-			return nil, fmt.Errorf("Fail to create kubernetes config from %s | Error %s", kubeconfigPath, err)
+			return nil, fmt.Errorf("failed to create kubernetes config from %s: %s", kubeconfigPath, err)
 		}
 	}
 
 	clientset, err = kubernetes.NewForConfig(config)
 	if err != nil {
-		return nil, fmt.Errorf("Fail to create kubernetes client | Error %s", err)
+		return nil, fmt.Errorf("failed to create kubernetes client: %s", err)
 	}
 
 	return
