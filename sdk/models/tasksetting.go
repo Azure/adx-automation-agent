@@ -7,6 +7,8 @@ import (
 	"os/exec"
 	"strconv"
 	"time"
+
+	"github.com/Azure/adx-automation-agent/sdk/common"
 )
 
 // TaskSetting is the setting data model of A01Task
@@ -35,6 +37,11 @@ func (setting *TaskSetting) Execute() (result string, duration int, output []byt
 
 	execution := []string{"-c", setting.Execution["command"]}
 	cmd := exec.CommandContext(ctx, shellExec, execution...)
+
+	if tmpdir, err := os.Stat(common.PathMountArtifacts); err == nil && tmpdir.IsDir() {
+		const tmpEnvVar = "TMPDIR=" + common.PathMountArtifacts
+		cmd.Env = append(os.Environ(), tmpEnvVar)
+	}
 
 	begin := time.Now()
 	output, err := cmd.CombinedOutput()

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 	"os/exec"
 	"regexp"
 	"strings"
@@ -61,7 +62,14 @@ func (run *Run) SubmitChange() (*Run, error) {
 // QueryTests returns the list of test tasks based on the query string
 func (run *Run) QueryTests() []TaskSetting {
 	common.LogInfo(fmt.Sprintf("Expecting script %s.", common.PathScriptGetIndex))
-	content, err := exec.Command(common.PathScriptGetIndex).Output()
+	cmd := exec.Command(common.PathScriptGetIndex)
+
+	if tmpdir, err := os.Stat(common.PathMountArtifacts); err == nil && tmpdir.IsDir() {
+		const tmpEnvVar = "TMPDIR=" + common.PathMountArtifacts
+		cmd.Env = append(os.Environ(), tmpEnvVar)
+	}
+
+	content, err := cmd.Output()
 	if err != nil {
 		panic(err.Error())
 	}

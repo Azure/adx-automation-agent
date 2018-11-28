@@ -46,7 +46,14 @@ func preparePod() {
 		return
 	}
 
-	output, err := exec.Command(common.PathScriptPreparePod).CombinedOutput()
+	cmd := exec.Command(common.PathScriptPreparePod)
+
+	if tmpdir, err := os.Stat(common.PathMountArtifacts); err == nil && tmpdir.IsDir() {
+		const tmpEnvVar = "TMPDIR=" + common.PathMountArtifacts
+		cmd.Env = append(os.Environ(), tmpEnvVar)
+	}
+
+	output, err := cmd.CombinedOutput()
 	if err != nil {
 		log.Fatalf("Fail to prepare the pod: %s.\n%s\n", err, string(output))
 	}
@@ -67,11 +74,18 @@ func afterTask(taskResult *models.TaskResult) error {
 		return fmt.Errorf("unable to encode task to JSON: %s", err.Error())
 	}
 
-	output, err := exec.Command(
+	cmd := exec.Command(
 		common.PathScriptAfterTest,
 		common.PathMountArtifacts,
 		string(taskInBytes),
-	).CombinedOutput()
+	)
+
+	if tmpdir, err := os.Stat(common.PathMountArtifacts); err == nil && tmpdir.IsDir() {
+		const tmpEnvVar = "TMPDIR=" + common.PathMountArtifacts
+		cmd.Env = append(os.Environ(), tmpEnvVar)
+	}
+
+	output, err := cmd.CombinedOutput()
 
 	if err != nil {
 		return fmt.Errorf("execution failed: %s", err.Error())
