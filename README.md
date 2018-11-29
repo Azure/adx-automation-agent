@@ -1,3 +1,9 @@
+# ADX Automation Agents
+
+[![Build Status](https://travis-ci.org/Azure/adx-automation-agent.svg?branch=master)](https://travis-ci.org/Azure/adx-automation-agent)
+
+This project contains the programs used in ADX team's automation system. These programs are load in the container based 
+test image to drive the tests.
 
 # Contributing
 
@@ -13,7 +19,3 @@ This project has adopted the [Microsoft Open Source Code of Conduct](https://ope
 For more information see the [Code of Conduct FAQ](https://opensource.microsoft.com/codeofconduct/faq/) or
 contact [opencode@microsoft.com](mailto:opencode@microsoft.com) with any additional questions or comments.
 
-# ADX Automation Agents
-
-This project contains the programs used in ADX team's automation system. These programs are load in 
-the container based test image to drive the tests.
